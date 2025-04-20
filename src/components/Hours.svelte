@@ -31,8 +31,8 @@
 <style>
     section {
         /* border: 1px solid red; */
-        padding-top: 3rem;
-        padding-bottom: 3rem;
+        /* padding-top: 3rem; */
+        /* padding-bottom: 3rem; */
         /* border: 0px solid red; */
         display: flex;
         flex-direction: column;

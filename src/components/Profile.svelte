@@ -1,6 +1,6 @@
 <script>
-    import Full from '/images/john.jpg';
-    import InAction from '/images/in-action.jpg';
+    import Full from '$lib/images/john.jpg';
+    import InAction from '$lib/images/in-action.jpg';
 </script>
 
 <section class="wrapper">
@@ -19,8 +19,8 @@
 
 <style>
     section {
-        padding-top: 3rem;
-        padding-bottom: 6rem;
+        /* padding-top: 3rem; */
+        /* padding-bottom: 3rem; */
         /* border: 1px solid red; */
         display: flex;
         flex-direction: column;

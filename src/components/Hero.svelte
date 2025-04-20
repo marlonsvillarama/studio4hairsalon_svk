@@ -1,9 +1,8 @@
 <script></script>
 
 <div class="container">
-    <div class="img" role="img"></div>
+    <div id="hero-image" class="img" role="img"></div>
     <div class="headline">
-        <!-- <h1>Studio4</h1> -->
         <span>Where artistry meets <span class="accent">precision</span></span>
     </div>
 </div>
@@ -12,11 +11,10 @@
     .container {
         position: relative;
         color: white;
-        padding-bottom: 3rem;
+        /* padding-bottom: 3rem; */
     }
     .img {
-        /* background-image: url("/images/hero.jpg"); */
-        /* background-image: url("/images/H-23.jpg"); */
+        background-image: url("$lib/images/hero.jpg");
         height: 100vh;
         max-height: 100vh;
         background-size: cover;

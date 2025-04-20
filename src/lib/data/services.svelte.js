@@ -1,9 +1,9 @@
-import Haircut from '/images/haircut.jpg';
-import Colour from '/images/colour.jpg';
-import Treatment from '/images/treatment.jpg';
-import Makeup from '/images/makeup.jpg';
+import Haircut from '$lib/images/haircut.jpg';
+import Colour from '$lib/images/colour.jpg';
+import Treatment from '$lib/images/treatment.jpg';
+import Makeup from '$lib/images/makeup.jpg';
 
-let allServices = $state([
+const allServices = $state([
     {
         id: 1,
         name: 'Haircut',

@@ -3,9 +3,22 @@
     import Hours from "../components/Hours.svelte";
     import Profile from "../components/Profile.svelte";
     import Services from "../components/Services.svelte";
+    import Reviews from "../components/Reviews.svelte";
 </script>
 
-<!-- <Hero /> -->
-<!-- <Services /> -->
-<!-- <Hours /> -->
-<!-- <Profile /> -->
+<main>
+    <Hero />
+    <Services />
+    <Hours />
+    <Profile />
+    <Reviews />
+</main>
+
+<style>
+    main {
+        padding-bottom: 8rem;
+        display: flex;
+        flex-direction: column;
+        gap: 8rem;
+    }
+</style>

@@ -1,5 +1,5 @@
 <script>
-    import { createServicesData } from '$lib/services.svelte';
+    import { createServicesData } from '$lib/data/services.svelte';
     import ServiceTile from './ServiceTile.svelte';
 
     const services = createServicesData();
@@ -13,8 +13,8 @@
 
 <style>
     section {
-        padding-top: 3rem;
-        padding-bottom: 3rem;
+        /* padding-top: 3rem; */
+        /* padding-bottom: 3rem; */
         /* border: 1px solid red; */
         display: flex;
         flex-direction: column;
