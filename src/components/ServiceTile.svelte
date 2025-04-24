@@ -17,19 +17,20 @@
         flex-direction: column;
         gap: 0.25rem; */
         cursor: pointer;
+        transition: all 150ms ease-in-out;
+    }
+    .container:hover {
+        opacity: 1;
+        box-shadow: var(--box-shadow);
+        /* transform: translateY(-2px); */
     }
     img {
         width: 100%;
         /* height: 100%; */
         border: 0;
         margin-bottom: 1rem;
-        opacity: 0.7;
+        opacity: 0.9;
         transition: all 100ms ease-in-out;
-    }
-    .container:hover > img {
-        opacity: 1;
-        box-shadow: var(--box-shadow);
-        /* transform: translateY(-2px); */
     }
     .text {
         color: var(--color-grey-dark-03-rgb);
@@ -49,5 +50,6 @@
         font-family: var(--font-default);
         font-size: var(--fs-sm);
         font-weight: 200;
+        padding: 0 1.5rem 1.5rem;
     }
 </style>

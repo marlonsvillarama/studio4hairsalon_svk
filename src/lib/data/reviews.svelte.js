@@ -1,3 +1,14 @@
+import Review001 from '$lib/images/fb/review-001.jpg';
+import Review002 from '$lib/images/fb/review-002.jpg';
+import Review003 from '$lib/images/fb/review-003.jpg';
+import Review006 from '$lib/images/fb/review-006.jpg';
+import Review007 from '$lib/images/fb/review-007.jpg';
+import Customers001 from '$lib/images/fb/customers-001.jpg';
+import Customers002 from '$lib/images/fb/customers-002.jpg';
+import Customers003 from '$lib/images/fb/customers-003.jpg';
+import Customers005 from '$lib/images/fb/customers-005.jpg';
+import Customers006 from '$lib/images/fb/customers-006.jpg';
+
 const reviews = $state([
     {
         author: 'Marielle',
@@ -17,12 +28,26 @@ const reviews = $state([
     },
     {
         author: 'Michael',
-        text: 'I am very fussy with my hair and the quality and care is absolutely top-notch! Better than many hairdressers in Auckland! Thank!!'
+        text: 'I am very fussy with my hair and the quality and care is absolutely top-notch! Better than many hairdressers in Auckland! Thank you!!'
     },
+]);
+
+const images = $state([
+    Review001,
+    Customers001,
+    Review002,
+    Customers002,
+    Customers003,
+    Review007,
+    Customers005,
+    Review006,
+    Customers006,
+    Review003
 ]);
 
 export const createReviewsData = () => {
     return {
-        get list() { return reviews; }
+        get list() { return reviews; },
+        get images() { return images; }
     };
 };

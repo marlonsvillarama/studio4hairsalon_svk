@@ -14,11 +14,4 @@
     <Reviews />
 </main>
 
-<style>
-    main {
-        padding-bottom: 8rem;
-        display: flex;
-        flex-direction: column;
-        gap: 8rem;
-    }
-</style>
+<style></style>

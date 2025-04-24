@@ -3,22 +3,22 @@
 <header>
     <div class="menu full wrapper">
         <nav>
-            <a href="/">Services</a>
-            <a href="/">Gallery</a>
-            <a href="/">Reviews</a>
+            <a href="/services">Services</a>
+            <a href="/gallery">Gallery</a>
+            <a href="/reviews">Reviews</a>
         </nav>
-        <div class="logo">Studio 4</div>
+        <a class="logo" href="/">Studio 4</a>
         <div>
-            <a href="/" class="contact">Contact Us</a>
-            <a href="/" class="cta">Book Now</a>
+            <!-- <a href="/contact" class="contact">Contact Us</a> -->
+            <a href="/book" class="cta">Book Now</a>
         </div>
     </div>
     <div class="menu small wrapper">
         <div class="logo">Studio 4</div>
         <nav>
-            <a href="/">Services</a>
-            <a href="/">Gallery</a>
-            <a href="/">Reviews</a>
+            <a href="/services">Services</a>
+            <a href="/gallery">Gallery</a>
+            <a href="/reviews">Reviews</a>
         </nav>
     </div>
 </header>

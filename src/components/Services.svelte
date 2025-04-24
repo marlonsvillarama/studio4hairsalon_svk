@@ -7,7 +7,9 @@
 
 <section class="wrapper">
     {#each services.list as service}
-        <ServiceTile image={service.image} label={service.name} description={service.description}/>
+        <a href="/services#{service.link}">
+            <ServiceTile image={service.image} label={service.name} description={service.description}/>
+        </a>
     {/each}
 </section>
 

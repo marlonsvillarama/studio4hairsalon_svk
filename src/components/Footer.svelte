@@ -9,10 +9,10 @@
         </div>
 
         <nav>
-            <span><a href="/" class="cta">Book Now</a></span>
-            <a href="/"><span>Browse our services</span></a>
-            <a href="/"><span>See our past work</span></a>
-            <a href="/"><span>Read our client reviews</span></a>
+            <span><a href="/book" class="cta">Book Now</a></span>
+            <a href="/services"><span>Browse our services</span></a>
+            <a href="/gallery"><span>See our past work</span></a>
+            <a href="/reviews"><span>Read our client reviews</span></a>
         </nav>
 
         <div class="slogan">

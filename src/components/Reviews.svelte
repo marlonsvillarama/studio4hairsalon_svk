@@ -1,22 +1,33 @@
 <script>
     import { createReviewsData } from "$lib/data/reviews.svelte";
+    import { onMount } from "svelte";
     import { crossfade, fade, slide } from "svelte/transition";
 
     const reviews = createReviewsData();
+
+    const getRandom = () => {
+        const MIN = Math.ceil(0);
+        const MAX = Math.floor(4);
+        return Math.floor(
+            Math.random() * (MAX - MIN + 1)
+        );
+    };
+
     let count = reviews.list.length;
     let show = $state(true);
-    let index = $state(0);
+    let index = $state(getRandom());
     let review = $derived(reviews.list[index]);
+    
+    onMount(() => index = getRandom());
+    // const delay = () => new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const delay = () => new Promise((resolve) => setTimeout(resolve, 5000));
-
-    (async () => {
+    /* (async () => {
         while (index < count) {
             console.log(`LOOP index = ${index}`);
             await delay();
             index < (count - 1) ? index++ : index = 0;
         }
-    })();
+    })(); */
 </script>
 
 <section class="wrapper">
