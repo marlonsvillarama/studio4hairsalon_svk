@@ -70,6 +70,17 @@ export const createServicesData = () => {
         //         return { id: d.id, name: d.name };
         //     });
         // },
-        get list () { return allServices; }
+        get list () { return allServices; },
+        get services () {
+            /**
+             * @type {never[]}
+             */
+            let output = allServices.reduce((a, b) => {
+                // @ts-ignore
+                a = a.concat(b.services);
+                return a;
+            }, []);
+            return output;
+        }
     };
 };
