@@ -3,6 +3,8 @@ import Colour from '$lib/images/colour.jpg';
 import Treatment from '$lib/images/treatment.jpg';
 import Makeup from '$lib/images/makeup.jpg';
 
+let activeCategory = $state({});
+let activeService = $state({});
 const allServices = $state([
     {
         id: 1,
@@ -71,6 +73,8 @@ export const createServicesData = () => {
         //     });
         // },
         get list () { return allServices; },
+        get activeCategory () { return activeCategory; },
+        get activeService () { return activeService; },
         get services () {
             /**
              * @type {never[]}
@@ -81,6 +85,12 @@ export const createServicesData = () => {
                 return a;
             }, []);
             return output;
+        },
+
+        set activeService (value) {
+            activeService = value;
+            // @ts-ignore
+            activeCategory = allServices.find(d => d.services.map(s => s.id).indexOf(activeService.id) >= 0);
         }
     };
 };

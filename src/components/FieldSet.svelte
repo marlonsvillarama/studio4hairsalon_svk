@@ -41,6 +41,9 @@
         width: 100%;
         /* border: 1px solid red; */
     }
+    .fieldset:not(:last-of-type) {
+        padding-bottom: 2rem;
+    }
     h4 {
         color: var(--color-grey-dark-03-rgb);
         font-size: var(--fs-sm);
@@ -75,7 +78,6 @@
         width: 100%;
     }
     @media (min-width: 40rem) {
-        input[type=text],
         input[type=email] {
             width: 20rem;
         }

@@ -4,11 +4,36 @@
     import { onMount } from "svelte";
     import { createBookingData } from "$lib/data/booking.svelte";
     import { createServicesData } from "$lib/data/services.svelte";
+    import { linear } from "svelte/easing";
 
     const bookingData = createBookingData();
     const servicesData = createServicesData();
-    let service = $state({});
     let allServices = servicesData.list;
+
+    const findServiceById = (id) => {
+        return servicesData.services.find(d => d.id.toString() === id.toString());
+    };
+
+    const handleOptionSelect = (id) => {
+        let container = document.getElementById('serviceSelect');
+        let dropDown = container?.querySelector('.select-options');
+        let selectButton = container?.querySelector('.select-button');
+        
+        const options = dropDown?.querySelectorAll('li');
+        const selectedValue = selectButton?.querySelector('.selected-value');
+        const option = dropDown?.querySelector(`[data-id="${id.toString()}"]`);
+
+        options?.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+
+        if (selectedValue) {
+            servicesData.activeService = findServiceById(option.dataset.id);
+
+        // @ts-ignore
+            let selectedText = `${option.dataset.category} - ${option.textContent.trim()}`;
+            selectedValue.textContent = selectedText;
+        }
+    };
 
     const toggleDropdown = () => {
         let container = document.getElementById('serviceSelect');
@@ -16,25 +41,6 @@
         
         const isOpen = dropDown?.classList.contains('hidden') === false;
         dropDown?.classList.toggle('hidden');
-    };
-
-    const handleOptionSelect = (/** @type {HTMLLIElement} */ option) => {
-        let container = document.getElementById('serviceSelect');
-        let dropDown = container?.querySelector('.select-options');
-        let selectButton = container?.querySelector('.select-button');
-        
-        const options = dropDown?.querySelectorAll('li');
-        const selectedValue = selectButton?.querySelector('.selected-value');
-
-        options?.forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-
-        if (selectedValue) {
-            service = servicesData.services.find(d => d.id.toString() === option.value.toString());
-            // @ts-ignore
-            let selectedText = `${option.dataset.category} - ${option.textContent.trim()}`;
-            selectedValue.textContent = selectedText;
-        }
     };
 
     onMount(() => {
@@ -47,10 +53,17 @@
         const selectedValue = selectButton?.querySelector('.selected-value');
         options?.forEach(option => {
             option.addEventListener('click', () => {
-                handleOptionSelect(option);
+                console.log('selectedId', option.dataset.id);
+                handleOptionSelect(option.dataset.id);
                 toggleDropdown();
             });
         });
+
+        let serviceId = new URLSearchParams(location.search).get("id");
+        if (!serviceId) { return; }
+
+        handleOptionSelect(serviceId);
+        servicesData.activeService = findServiceById(serviceId);
     });
 </script>
 
@@ -60,7 +73,7 @@
         <p class="help">What would you like to have?</p>
     
         <div class="select" id="serviceSelect">
-            <button class="select-button">
+            <button class="select-button" type="button">
                 <span class="selected-value"></span>
                 <span class="arrow"></span>
             </button>
@@ -69,21 +82,23 @@
                 {#each allServices as category}
                     <li class="category">{category.name}</li>
                     {#each category.services as item}
-                        <li class="option" value={item.id} data-category={category.name}>{item.name}</li>
+                        <li class="option" data-id={item.id} data-category={category.name}>{item.name}</li>
                     {/each}
                 {/each}
             </ul>
         </div>
     </div>
 
-    {#if service.description}
-    <p class="help">{service.description}</p>
+    {#if servicesData.activeService.description}
+        <p class="help">{servicesData.activeService.description}</p>
     {/if}
 
-    {#if !!service.price === true}
+    {#if !!servicesData.activeService.price === true}
     <div class="price">
-        <span class="label">Price</span>
-        <span class="value">{service.price}</span>
+        {#if servicesData.activeService.range === true}
+            <span class="label">starts from</span>
+        {/if}
+        <span class="value">${servicesData.activeService.price}</span>
     </div>
     {/if}
 </div>
@@ -206,7 +221,7 @@
         padding: 1rem 2rem;
         border: 0;
         border-radius: 0.5rem;
-        background-color: var(--color-border-lite);
+        background-color: var(--color-border-lite-extra);
     }
     .value {
         margin-left: 1rem;
