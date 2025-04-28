@@ -1,7 +1,6 @@
 <script>
     // @ts-nocheck
     import { createBookingData } from "$lib/data/booking.svelte";
-    import CalendarDate from "./CalendarDate.svelte";
     
     const allMonths = [
         'January',
@@ -18,6 +17,8 @@
         'December'
     ];
 
+    let { ondateclick } = $props();
+
     let bookingData = createBookingData();
     let currentDate = new Date();
     let currentMonth = $derived(currentDate.getMonth());
@@ -26,9 +27,9 @@
     let activeDate = $state(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()));
     let activeMonth = $derived(activeDate.getMonth());
     let activeYear = $derived(activeDate.getFullYear());
+    let disabled = $derived(activeMonth <= currentMonth && activeYear === currentYear);
 
     // @ts-ignore
-    // let monthDates = $state([]);
     let monthDates = $derived.by(() => {
         let output = [];
         let startOfMonth = new Date(activeYear, activeMonth, 1);
@@ -45,28 +46,36 @@
         let dateValue = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), startOfMonth.getDate());
         while (dateValue <= endOfMonth) {
             let dateCursor = new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate());
+            // console.log('dateCursor', dateCursor);
+            // console.log('dateCursor.getMonth() === activeMonth', dateCursor.getMonth() === activeMonth);
+            // console.log('dateCursor.getDate() > activeDate.getDate()', dateCursor.getDate() > activeDate.getDate());
+            // console.log('dateCursor > activeDate', dateCursor > activeDate);
+
             output.push({
                 date: dateCursor,
                 day: dateCursor.getDay(),
-                inMonth: (dateCursor.getMonth() === currentMonth)
+                active: dateCursor.getDay() !== 0 && (
+                    dateCursor.getMonth() === activeMonth &&
+                    dateCursor > currentDate
+                    /* (
+                        dateCursor.getMonth() === currentMonth &&
+                        dateCursor.getDate() > activeDate.getDate()
+                    ) || (
+                        dateCursor.getMonth() > currentMonth &&
+                        dateCursor.getMonth() === activeMonth
+                    ) */
+                )
             });
             dateValue.setDate(dateValue.getDate() + 1);
         }
 
-        console.log('output', output);
         return output;
     });
-    let sundays = $derived(monthDates.filter(d => d.day === 0));
-    let mondays = $derived(monthDates.filter(d => d.day === 1));
-    let tuesdays = $derived(monthDates.filter(d => d.day === 2));
-    let wednesdays = $derived(monthDates.filter(d => d.day === 3));
-    let thursdays = $derived(monthDates.filter(d => d.day === 4));
-    let fridays = $derived(monthDates.filter(d => d.day === 5));
-    let saturdays = $derived(monthDates.filter(d => d.day === 6));
 
     const clearGrid = () => {
         const calendarGrid = document.querySelector('.calendar > .grid');
         const calendarDates = calendarGrid?.querySelectorAll('.dates');
+
         calendarDates?.forEach(d => d.textContent = '');
     };
 
@@ -89,52 +98,60 @@
             output.push({
                 date: dateCursor,
                 day: dateCursor.getDay(),
-                inMonth: (dateCursor.getMonth() === currentMonth)
+                active: (dateCursor.getMonth() === currentMonth)
             });
             dateValue.setDate(dateValue.getDate() + 1);
         }
 
-        console.log('output', output);
         return output;
     };
 
     const previousMonth = () => {
-        console.log('previousMonth');
-        if (activeMonth <= currentMonth) { return; }
+        // if (activeMonth <= currentMonth && activeYear === ) { return; }
 
+        // let dateCursor = new Date(activeDate.getFullYear(), activeDate.getMonth(), 0);
+        // console.log('previousMonth dateCursor', dateCursor);
         activeDate.setMonth(activeDate.getMonth() - 1);
         monthDates = getMonthDates();
         activeDate = new Date(activeDate.getFullYear(), activeDate.getMonth(), activeDate.getDate())
-        console.log('previousMonth END', activeDate);
     };
 
     const nextMonth = () => {
-        console.log('nextMonth');
-        // if (activeMonth <= currentMonth) { return; }
-
-        // clearGrid();
         activeDate.setMonth(activeDate.getMonth() + 1);
         activeDate = new Date(activeDate.getFullYear(), activeDate.getMonth(), activeDate.getDate())
-        // monthDates = getMonthDates();
-        console.log('monthDates', monthDates);
-        logDays();
-        console.log('nextMonth END', activeDate);
     };
 
-    const logDays = () => {
-        console.log('logDays SUNDAY', sundays);
-        console.log('logDays MONDAY', mondays);
-        console.log('logDays TUESDAY', tuesdays);
-        console.log('logDays WEDNESDAY', wednesdays);
-        console.log('logDays THURSDAY', thursdays);
-        console.log('logDays FRIDAY', fridays);
-        console.log('logDays SATURDAY', saturdays);
+    const parseDate = (str) => {
+        return new Date(str.slice(0, 4), parseInt(str.slice(4, 6)) - 1, str.slice(6));
+    };
+
+    const selectDate = (e) => {
+        bookingData.date = parseDate(e.target.dataset.date);
+        ondateclick();
+    };
+
+    const unparseDate = (date) => {
+        return options.date.getFullYear() +
+            (options.date.getMonth() + 1).toString().padStart(2, '0') +
+            options.date.getDate().toString().padStart(2, '0');
     };
 </script>
 
+{#snippet calendarDay(options)}
+    <button type="button"
+        class={[ "date", { outside: options.active === false } ]}
+        data-date={options.date.getFullYear() +
+            (options.date.getMonth() + 1).toString().padStart(2, '0') +
+            options.date.getDate().toString().padStart(2, '0')}
+        onclick={(options) => selectDate(options)}
+    >
+        {options.date.getDate()}
+    </button>
+{/snippet}
+
 <div class="calendar">
     <div class="calendar-header">
-        <button type="button" class="nav disabled" onclick={previousMonth}>&lt;</button>
+        <button type="button" class={[ "nav", { disabled } ]} onclick={previousMonth}>&lt;</button>
         <span>{allMonths[activeMonth]} {activeYear}</span>
         <button type="button" class="nav" onclick={nextMonth}>&gt;</button>
     </div>
@@ -142,8 +159,8 @@
         <div class="col">
             <div class="header">S</div>
             <div class="dates">
-                {#each sundays as monthDate}
-                    <CalendarDate data={monthDate} />
+                {#each monthDates.filter(d => d.day === 0) as monthDate}
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -151,7 +168,7 @@
             <div class="header">M</div>
             <div class="dates">
                 {#each monthDates.filter(d => d.day === 1) as monthDate}
-                    <CalendarDate data={monthDate} />
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -159,7 +176,7 @@
             <div class="header">T</div>
             <div class="dates">
                 {#each monthDates.filter(d => d.day === 2) as monthDate}
-                    <CalendarDate data={monthDate} />
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -167,7 +184,7 @@
             <div class="header">W</div>
             <div class="dates">
                 {#each monthDates.filter(d => d.day === 3) as monthDate}
-                    <CalendarDate data={monthDate} />
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -175,7 +192,7 @@
             <div class="header">T</div>
             <div class="dates">
                 {#each monthDates.filter(d => d.day === 4) as monthDate}
-                    <CalendarDate data={monthDate} />
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -183,7 +200,7 @@
             <div class="header">F</div>
             <div class="dates">
                 {#each monthDates.filter(d => d.day === 5) as monthDate}
-                    <CalendarDate data={monthDate} />
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -191,7 +208,7 @@
             <div class="header">S</div>
             <div class="dates">
                 {#each monthDates.filter(d => d.day === 6) as monthDate}
-                    <CalendarDate data={monthDate} />
+                    {@render calendarDay(monthDate)}
                 {/each}
             </div>
         </div>
@@ -237,9 +254,6 @@
         display: grid;
         grid-template-columns: repeat(7, 1fr);
         gap: 2px;
-        /* flex-direction: row; */
-        /* justify-content: space-between; */
-        /* align-items: start; */
         font-size: var(--fs-sm);
     }
     .col {
@@ -253,5 +267,20 @@
     .dates {
         display: flex;
         flex-direction: column;
+    }
+    .date {
+        display: block;
+        background-color: white;
+        border: 0px solid red;
+        padding: 0.5rem 0;
+        cursor: pointer;
+        border-radius: 0.5rem;
+    }
+    .date:not(.outside):hover {
+        background-color: var(--color-border-lite-extra);
+    }
+    .outside {
+        color: var(--color-border-lite);
+        cursor: not-allowed;
     }
 </style>

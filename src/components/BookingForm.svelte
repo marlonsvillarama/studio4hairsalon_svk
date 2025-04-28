@@ -1,10 +1,12 @@
 <script>
 // @ts-nocheck
 
+    import Stepper from './Stepper.svelte';
     import FieldSet from './FieldSet.svelte';
     import ServiceSelector from './ServiceSelector.svelte';
     import DatePicker from './DatePicker.svelte';
-    import Stepper from './Stepper.svelte';
+    import TimePicker from './TimePicker.svelte';
+
     import { createBookingData } from '$lib/data/booking.svelte';
     import { createServicesData } from '$lib/data/services.svelte';
 
@@ -49,9 +51,10 @@
     <Stepper {step} />
     
     <div class="form" id="bookingForm">
-        <div class="step active" data-step="1">
+        <div class="step step-1 active" data-step="1">
             <ServiceSelector />
             <DatePicker />
+            <TimePicker />
         </div>
 
         <div class="step" data-step="2">
@@ -79,57 +82,14 @@
             {/if}
         </div>
     </div>
-    <!-- <aside>
-        <h4>How to book</h4>
-        <div class="steps">
-            <div class="step" data-form-step="1">
-                <span>Step 1: Choose what you want</span><br>
-                <p>Some text here...</p>
-            </div>
-            <div class="step" data-form-step="2">
-                <span>Step 2: Share your details</span><br>
-                <p>Leave your contact details so we can confirm your appointment.</p>
-            </div>
-            <div class="step" data-form-step="3">
-                <span>Step 3: Confirm your appointment</span><br>
-                <p>Some text here...</p>
-            </div>
-        </div>
-    </aside> -->
-
-    <!--  -->
-
-    <!-- <div class="form">
-        test
-    </div> -->
 </section>
 
 <style>
     section {
-        /* padding-top: 3rem; */
-        /* padding-bottom: 3rem; */
-        /* border: 1px solid red; */
         display: flex;
         flex-direction: column;
         gap: 2rem;
     }
-    /* @media (min-width: 64rem) {
-        section {
-            display: grid;
-            grid-template-columns: 40% calc(60% - 4rem);
-            gap: 4rem;
-        }
-    } */
-    /* .steps {
-        border: 1px solid red;
-    } */
-    /* aside h4 {
-        color: var(--color-grey-dark-03-rgb);
-        font-family: var(--font-serif);
-        font-size: var(--fs-xl);
-        font-weight: 700;
-        padding-bottom: 1.5rem;
-    } */
     .step {
         border: 0px solid green;
         padding: 0;
@@ -141,9 +101,6 @@
         box-sizing: content-box;
     }
     .step.active {
-        /* border: 1px dotted var(--color-accent);
-        border-radius: 1rem;
-        box-shadow: var(--card-shadow); */
         display: block;
         flex-direction: column;
         gap: 2rem;
@@ -156,69 +113,19 @@
     .step > *:not(:last-child) {
         margin-bottom: 2rem;
     }
-    /* .step > span {
-        color: var(--color-accent);
-        font-family: var(--font-default);
-        font-size: var(--fs-lg);
-        font-weight: 300;
-        display: inline-block;
-        letter-spacing: 0.25px;
-        padding-bottom: 0.5rem;
-    } */
-    /* .step > p {
-        color: var(--color-grey-dark-03-rgb);
-        font-family: var(--font-default);
-        font-size: var(--fs-sm);
-        font-weight: 200;
-        padding-left: 2rem;
-        letter-spacing: 0.25px;
-    } */
-    /* section > div {
-        align-items: flex-start;
-        justify-content: center;
-    } */
-    /* section:first-child {
-        display: none;
-    } */
-    /* @media (min-width: 64rem) {
-        section:first-child {
-            display: block;
-            justify-content: flex-end;
-            width: auto;
-            align-items: right;
-        }
-    } */
-
-    /* img {
-        display: none;
-    } */
-    /* @media (min-width: 64rem) {
-        img {
-            display: block;
-            /!* max-inline-size: 100%; *!/
-            width: 100%;
-            block-size: auto;
-            object-fit: contain;
-            object-position: center center;
-        }
-    } */
-     .step.confirm {
+    .step-1 {}
+    .step.confirm {
         border: 1px solid red;
-     }
+    }
     .form {
-        /* width: 50%; */
-        /* min-width: 20rem; */
-        /* margin: 0 auto; */
         border: 0px solid red;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 2rem;
-        /* width: 60%; */
     }
     .actions {
         width: 100%;
-        /* border: 1px solid green; */
         display: flex;
         flex-direction: row;
         justify-content: center;
@@ -237,14 +144,7 @@
     }
     button:not(.cta):hover {
         background-color: var(--color-border-lite);
-        /* box-shadow: none; */
-        /* box-shadow: var(--button-shadow); */
     }
-    /* @media (min-width: 40rem) {
-        button:hover {
-            box-shadow: var(--button-shadow);
-        }
-    } */
 
     button.cta {
         background-color: var(--color-bg-btn);

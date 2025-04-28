@@ -16,7 +16,6 @@
         });
 
         let activeStep = stepper?.querySelector(`[data-step="${step.toString()}"]`);
-        console.log('activeStep', activeStep);
         if (activeStep) {
             activeStep.classList.add('active');
         }

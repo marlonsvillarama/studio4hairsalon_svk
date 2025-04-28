@@ -1,6 +1,40 @@
 <script>
+// @ts-nocheck
+
+    import { onMount } from 'svelte';
+    import { createBookingData } from '$lib/data/booking.svelte';
     import CalendarIcon from '$lib/images/icons/calendar.svg';
     import Calendar from './Calendar.svelte';
+
+    const bookingData = createBookingData();
+    
+    const selectDate = () => {
+        console.log('DatePicker selectDate', bookingData.date);
+        const dateSelect = document.getElementById('dateSelect');
+        const selectedValue = dateSelect?.querySelector('.selected-value');
+        selectedValue.textContent = bookingData.date.toLocaleDateString('en-NZ', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        toggleCalendar();
+    };
+
+    const toggleCalendar = () => {
+        let container = document.getElementById('dateSelect');
+        let calendar = container?.querySelector('.calendar');
+        
+        const isOpen = calendar?.classList.contains('hidden') === false;
+        calendar?.classList.toggle('hidden');
+    };
+
+    onMount(() => {
+        let container = document.getElementById('dateSelect');
+        let selectButton = container?.querySelector('.select-button');
+        selectButton?.addEventListener('click', () => { toggleCalendar(); });
+    });
 </script>
 
 <div class="date-picker">
@@ -10,10 +44,12 @@
 
         <div class="select" id="dateSelect">
             <button class="select-button" type="button">
-                <span class="selected-value">99 September, 2025 (Wednesday)</span>
+                <span class="selected-value"></span>
                 <img src={CalendarIcon} alt="Pick a date">
             </button>
-            <Calendar />
+            <div class="calendar hidden">
+                <Calendar ondateclick={selectDate} />
+            </div>
         </div>
     </div>
 </div>
@@ -25,6 +61,7 @@
         display: flex;
         flex-direction: column;
         gap: 2rem;
+        margin-bottom: 2rem;
     }
     .label {
         color: var(--color-grey-dark-03-rgb);
@@ -55,7 +92,7 @@
         border-radius: 0.5rem;
         cursor: pointer;
         font-size: var(--fs-sm);
-        padding: 0.75rem 1.25rem;
+        padding: 0.5rem 1.25rem;
         width: 100%;
     }
     .selected-value {
@@ -68,5 +105,17 @@
         border-right: 0.5rem solid transparent;
         border-top: 0.5rem solid var(--color-grey-dark-03-rgb);
         transition: transform ease-in-out 300ms; */
+    }
+    .calendar {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 25rem;
+        background-color: white;
+        /* border: 1px solid var(--color-accent); */
+        border-radius: 0.5rem;
+        margin: 0.5rem 0 0;
+        box-shadow: var(--button-shadow);
+        z-index: 9999;
     }
 </style>

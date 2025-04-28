@@ -78,7 +78,6 @@
                 <span class="arrow"></span>
             </button>
             <ul class="select-options hidden">
-                <!-- <li class="reminder" value="">Please select a service...</li> -->
                 {#each allServices as category}
                     <li class="category">{category.name}</li>
                     {#each category.services as item}
@@ -110,6 +109,7 @@
         display: flex;
         flex-direction: column;
         gap: 2rem;
+        margin-bottom: 2rem;
     }
     .fieldset,
     .price {
@@ -184,7 +184,7 @@
         border-radius: 0.5rem;
     }
     li {
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 1.5rem;
         cursor: pointer;
         color: var(--color-grey-dark-03-rgb);
         font-family: var(--font-default);
@@ -196,6 +196,11 @@
     li.category {
         font-weight: 600;
         padding: 0.5rem 0;
+        border-radius: 0;
+        border-bottom: 2px solid var(--color-accent);
+    }
+    li.category:not(:first-of-type) {
+        margin-top: 1rem;
     }
     /* li:not(.reminder) {
         display: flex;

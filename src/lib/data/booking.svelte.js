@@ -1,47 +1,26 @@
 let bookingData = $state({
-    name: '',
+    date: new Date(),
     email: '',
+    name: '',
     phone: '',
-    date: '',
-    service: ''
+    service: '',
+    time: ''
 });
 
 export const createBookingData = () => {
     return {
-        /**
-         * @param {string} value
-         */
-        /**
-         * @param {string} value
-         */
-        set name (value) { bookingData.name = value || ''; },
-        /**
-         * @param {string} value
-         */
-        /**
-         * @param {string} value
-         */
+        get date () { return bookingData.date; },
+        get email () { return bookingData.email; },
+        get name () { return bookingData.name; },
+        get phone () { return bookingData.phone; },
+        get service () { return bookingData.service; },
+        get time () { return bookingData.time; },
+        
+        set date (value) { bookingData.date = value; },
         set email (value) { bookingData.email = value || ''; },
-        /**
-         * @param {string} value
-         */
-        /**
-         * @param {string} value
-         */
+        set name (value) { bookingData.name = value || ''; },
         set phone (value) { bookingData.phone = value || ''; },
-        /**
-         * @param {string} value
-         */
-        /**
-         * @param {string} value
-         */
-        set date (value) { bookingData.date = value || ''; },
-        /**
-         * @param {string} value
-         */
-        /**
-         * @param {string} value
-         */
-        set service (value) { bookingData.service = value || ''; }
+        set service (value) { bookingData.service = value || ''; },
+        set time (value) { bookingData.time = value || ''; }
     };
 };
