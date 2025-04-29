@@ -1,5 +1,5 @@
 let bookingData = $state({
-    date: new Date(),
+    date: null,
     email: '',
     name: '',
     phone: '',

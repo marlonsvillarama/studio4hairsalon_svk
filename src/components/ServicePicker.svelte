@@ -28,6 +28,7 @@
 
         if (selectedValue) {
             servicesData.activeService = findServiceById(option.dataset.id);
+            bookingData.service = option.dataset.id;
 
         // @ts-ignore
             let selectedText = `${option.dataset.category} - ${option.textContent.trim()}`;
@@ -67,7 +68,7 @@
     });
 </script>
 
-<div class="service-selector">
+<div class="service-picker">
     <div class="fieldset">
         <h4 class="label">Service</h4>
         <p class="help">What would you like to have?</p>
@@ -94,21 +95,24 @@
 
     {#if !!servicesData.activeService.price === true}
     <div class="price">
-        {#if servicesData.activeService.range === true}
-            <span class="label">starts from</span>
-        {/if}
-        <span class="value">${servicesData.activeService.price}</span>
+        <span>About {servicesData.activeService.duration} minutes</span>
+        <div>
+            {#if servicesData.activeService.range === true}
+                <span class="label">starts from</span>
+            {/if}
+            <span class="value">${servicesData.activeService.price}</span>
+        </div>
     </div>
     {/if}
 </div>
 
 <style>
-    .service-selector {
+    .service-picker {
         min-width: 20rem;
         width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 2rem;
+        gap: 1rem;
         margin-bottom: 2rem;
     }
     .fieldset,
@@ -221,16 +225,17 @@
         /* border: 1px solid red; */
         display: flex;
         flex-direction: row;
-        justify-content: flex-end;
-        /* align-items: center; */
+        justify-content: space-between;
+        align-items: center;
         padding: 1rem 2rem;
         border: 0;
         border-radius: 0.5rem;
         background-color: var(--color-border-lite-extra);
+        font-weight: 200;
     }
     .value {
         margin-left: 1rem;
-        font-weight: 100;
+        font-weight: 500;
         font-size: var(--fs-xl);
     }
 </style>

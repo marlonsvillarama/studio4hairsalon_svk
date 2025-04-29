@@ -3,7 +3,7 @@
 
     import Stepper from './Stepper.svelte';
     import FieldSet from './FieldSet.svelte';
-    import ServiceSelector from './ServiceSelector.svelte';
+    import ServicePicker from './ServicePicker.svelte';
     import DatePicker from './DatePicker.svelte';
     import TimePicker from './TimePicker.svelte';
 
@@ -52,9 +52,13 @@
     
     <div class="form" id="bookingForm">
         <div class="step step-1 active" data-step="1">
-            <ServiceSelector />
-            <DatePicker />
-            <TimePicker />
+            <ServicePicker />
+            {#if bookingData.service}
+                <DatePicker />
+            {/if}
+            {#if bookingData.date}
+                <TimePicker />
+            {/if}
         </div>
 
         <div class="step" data-step="2">
