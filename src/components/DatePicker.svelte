@@ -6,6 +6,8 @@
     import CalendarIcon from '$lib/images/icons/calendar.svg';
     import Calendar from './Calendar.svelte';
 
+    let { ondateselect } = $props();
+    
     const bookingData = createBookingData();
     
     const selectDate = () => {

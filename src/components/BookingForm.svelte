@@ -13,6 +13,7 @@
     const bookingData = createBookingData();
     const servicesData = createServicesData();
     let step = $state(1);
+    let availableTimes = $state([]);
 
     $effect(() => {
         let bookingForm = document.getElementById('bookingForm');
@@ -28,22 +29,52 @@
         }
     });
 
-    const doNext = () => {
+    const navNext = () => {
         if (step >= 3) {
             step = 3;
             return;
         }
 
+        if (validateStep(step) === false) { return; }
+
         step++;
     };
 
-    const doBack = () => {
+    const navBack = () => {
         if (step <= 1) {
             step = 1;
             return;
         }
 
         step--;
+    };
+
+    const validateStep = (step) => {
+        switch (step) {
+            case 1: {
+                if (!bookingData.service) {
+                    alert('Please choose which service you like.');
+                    return false;
+                }
+
+                if (!bookingData.date || !bookingData.time) {
+                    alert('Please choose a date and time for your appointment.');
+                    return false;
+                }
+
+                break;
+            }
+            case 2: {
+                if (!bookingData.name || !bookingData.email || !bookingData.phone) {
+                    alert('Please complete your personal details.');
+                    return false;
+                }
+                
+                break;
+            }
+        }
+
+        return true;
     };
 </script>
 
@@ -80,10 +111,10 @@
         </div>
 
         <div class="actions">
-            <button type="button" class="cta" onclick={doNext}>{ step >= 3 ? 'Submit' : 'Next' }</button>
             {#if step > 1}
-            <button type="button" onclick={doBack}>Go back</button>
+            <button type="button" onclick={navBack}>Go back</button>
             {/if}
+            <button type="button" class="cta" onclick={navNext}>{ step >= 3 ? 'Submit' : 'Next' }</button>
         </div>
     </div>
 </section>
@@ -117,7 +148,6 @@
     .step > *:not(:last-child) {
         margin-bottom: 2rem;
     }
-    .step-1 {}
     .step.confirm {
         border: 1px solid red;
     }

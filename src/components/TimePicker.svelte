@@ -20,6 +20,11 @@
         '2:30 PM',
         '3:00 PM',
     ]);
+
+    $effect(() => {
+        console.log('TimePicker > bookingData.date', bookingData.date);
+        
+    });
     
     const selectTime = () => {
         console.log('TimePicker selectTime', bookingData.time);
@@ -56,7 +61,11 @@
 </script>
 
 <div class="time-picker">
-    <div class="fieldset">
+    <div class="loader-wrapper">
+        <div class="loader"></div>
+        <h3>Finding available times...</h3>
+    </div>
+    <div class="fieldset hidden">
         <h4 class="label">Time</h4>
         <p class="help">What time works best for you?</p>
 
@@ -167,5 +176,34 @@
     li:focus {
         background-color: #f2f2f2;
         font-weight: 400;
+    }
+
+    /* HTML: <div class="loader"></div> */
+    .loader-wrapper {
+        display: flex;
+        flex-direction: row;
+        gap: 1rem;
+        align-items: center;
+    }
+    .loader {
+        width: 1.5rem;
+        padding: 0.25rem;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: var(--color-grey-dark-03-rgb);
+        --_m: 
+            conic-gradient(#0000 10%,#000),
+            linear-gradient(#000 0 0) content-box;
+        -webkit-mask: var(--_m);
+                mask: var(--_m);
+        -webkit-mask-composite: source-out;
+                mask-composite: subtract;
+        animation: l3 500ms infinite linear;
+    }
+    @keyframes l3 {to{transform: rotate(1turn)}}
+    .loader + h3 {
+        font-size: var(--fs-sm);
+        font-weight: 200;
+        letter-spacing: 0.25px;
     }
 </style>

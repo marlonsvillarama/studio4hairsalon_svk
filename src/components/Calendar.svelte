@@ -1,6 +1,6 @@
 <script>
     // @ts-nocheck
-    import { createBookingData } from "$lib/data/booking.svelte";
+    import { createBookingData, parseDate } from "$lib/data/booking.svelte";
     
     const allMonths = [
         'January',
@@ -121,19 +121,9 @@
         activeDate = new Date(activeDate.getFullYear(), activeDate.getMonth(), activeDate.getDate())
     };
 
-    const parseDate = (str) => {
-        return new Date(str.slice(0, 4), parseInt(str.slice(4, 6)) - 1, str.slice(6));
-    };
-
     const selectDate = (e) => {
         bookingData.date = parseDate(e.target.dataset.date);
         ondateclick();
-    };
-
-    const unparseDate = (date) => {
-        return options.date.getFullYear() +
-            (options.date.getMonth() + 1).toString().padStart(2, '0') +
-            options.date.getDate().toString().padStart(2, '0');
     };
 </script>
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 let bookingData = $state({
     date: null,
     email: '',
@@ -6,6 +7,16 @@ let bookingData = $state({
     service: '',
     time: ''
 });
+
+export const parseDate = (str) => {
+    return new Date(str.slice(0, 4), parseInt(str.slice(4, 6)) - 1, str.slice(6));
+};
+
+export const unparseDate = (date) => {
+    return options.date.getFullYear() +
+        (options.date.getMonth() + 1).toString().padStart(2, '0') +
+        options.date.getDate().toString().padStart(2, '0');
+};
 
 export const createBookingData = () => {
     return {
