@@ -45,6 +45,11 @@ export const handler = async (event, context) => {
         body = body.Item;
         break;
       case "GET /appointments":
+        let dt = event['queryStringParameters']['dt'];
+        if (!dt) {
+          console.log();
+          break;
+        }
         body = await dynamo.send(
           new ScanCommand({ TableName: 'appointments' })
         );

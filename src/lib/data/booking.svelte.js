@@ -13,9 +13,9 @@ export const parseDate = (str) => {
 };
 
 export const unparseDate = (date) => {
-    return options.date.getFullYear() +
-        (options.date.getMonth() + 1).toString().padStart(2, '0') +
-        options.date.getDate().toString().padStart(2, '0');
+    return date.getFullYear() +
+        (date.getMonth() + 1).toString().padStart(2, '0') +
+        date.getDate().toString().padStart(2, '0');
 };
 
 export const createBookingData = () => {

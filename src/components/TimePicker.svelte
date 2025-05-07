@@ -2,11 +2,16 @@
     // @ts-nocheck
 
     import { onMount } from 'svelte';
-    import { createBookingData } from '$lib/data/booking.svelte';
+    import { createBookingData, parseDate, unparseDate } from '$lib/data/booking.svelte';
+    import { createServicesData } from '$lib/data/services.svelte';
     import ClockIcon from '$lib/images/icons/clock.svg';
 
+    const API_URL = 'https://1j6rfkw7g4.execute-api.ap-southeast-2.amazonaws.com/default/appointments';
     const bookingData = createBookingData();
-    let startTimes = $state([
+    const servicesData = createServicesData();
+    const allServices = servicesData.services;
+
+    let allStartTimes = [
         { dt: '0930', text: '9:30 AM' },
         { dt: '1000', text: '10:00 AM' },
         { dt: '1030', text: '10:30 AM' },
@@ -22,20 +27,85 @@
         { dt: '1530', text: '3:30 PM' },
         { dt: '1600', text: '4:00 PM' },
         { dt: '1630', text: '4:30 PM' }
-    ]);
+    ];
+    let availableTimes = $state([]);
+    // let bookedTimes = $state([]);
 
     $effect(async () => {
         console.log('TimePicker > bookingData.date', bookingData.date);
+        let dt = unparseDate(bookingData.date);
+        console.log('TimePicker > dt', dt);
+
         let timeLoader = document.getElementById('time-loader');
         timeLoader.classList.remove('hidden');
 
         let timeField = document.getElementById('time-field');
         timeField.classList.add('hidden');
 
-        let response = await fetch('/');
+        let response = await fetch(API_URL + `?dt=${dt}`);
+        let responseJSON = await response.json();
+        console.log('responseJSON', responseJSON);
+
+        availableTimes = filterAvailableTimes({ data: responseJSON });
+        console.log('availableTimes', availableTimes);
+
         timeLoader.classList.add('hidden');
         timeField.classList.remove('hidden');
     });
+
+    const filterAvailableTimes = (options) => {
+        let { data } = options;
+        let bookedTimes = [];
+        let now = new Date();
+
+        let sortedData = data.sort((a, b) => a.time - b.time);
+        sortedData.forEach(d => {
+            let svc = servicesData.getServiceById(d.service);
+            let slots = svc.duration / 30;
+
+            let dt = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
+                parseInt(d.time.slice(0, 2)),
+                parseInt(d.time.slice(2))
+            );
+            bookedTimes.push(`${dt.getHours().toString().padStart(2, '0')}${dt.getMinutes().toString().padStart(2, '0')}`);
+
+            for (let i = 0; i < slots - 1; i++) {
+                dt.setMinutes(dt.getMinutes() + 30);
+                bookedTimes.push(`${dt.getHours().toString().padStart(2, '0')}${dt.getMinutes().toString().padStart(2, '0')}`);
+            }
+        });
+        console.log('bookedTimes', bookedTimes);
+
+        let selectedService = servicesData.getServiceById(bookingData.service);
+        // TODO Make sure to account for the duration of the selected service.
+
+        // let output = [];
+        // let now = new Date();
+        // for (let i = 0, count = allStartTimes.length; i < count; i++) {
+        //     if (!bookedTimes.includes(allStartTimes[i])) {
+        //         output.push(allStartTimes[i]);
+        //         continue;
+        //     }
+
+        //     let dt = new Date(
+        //         now.getFullYear,
+        //         now.getMonth(),
+        //         now.getDate(),
+        //         bookedTimes.
+        //     );
+        // }
+
+        // let bookedServices = sortedData.map(d => d.service);
+        // let serviceData = allServices.filter(d => bookedServices.includes(d.id));
+        // console.log('serviceData', serviceData);
+
+        // let tempTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
+        
+        return allStartTimes.filter(t => !bookedTimes.includes(t.dt));
+    };
     
     const selectTime = () => {
         console.log('TimePicker selectTime', bookingData.time);
@@ -69,7 +139,7 @@
             });
         });
 
-        startTimes.push({ dt: '111', text: '111' });
+        // startTimes.push({ dt: '111', text: '111' });
     });
 </script>
 
@@ -88,7 +158,7 @@
                 <img src={ClockIcon} alt="Pick a time">
             </button>
             <ul class="select-options hidden">
-                {#each startTimes as time}
+                {#each availableTimes as time}
                     <li class="option" data-time={time.dt}>{time.text}</li>
                 {/each}
             </ul>

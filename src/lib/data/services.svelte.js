@@ -91,6 +91,19 @@ export const createServicesData = () => {
             activeService = value;
             // @ts-ignore
             activeCategory = allServices.find(d => d.services.map(s => s.id).indexOf(activeService.id) >= 0);
+        },
+
+        // @ts-ignore
+        getServiceById (id) {
+            console.log('getServiceById', id);
+            // @ts-ignore
+            return this.services.find(s => s.id === id);
+        },
+
+        // @ts-ignore
+        getServicesById (list) {
+            // @ts-ignore
+            return this.services.filter(s => list.includes(s.id));
         }
     };
 };
