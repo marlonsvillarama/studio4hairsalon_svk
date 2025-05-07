@@ -98,7 +98,7 @@ main {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 .wrapper {
     width: 85%;

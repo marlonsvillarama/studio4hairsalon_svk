@@ -7,23 +7,34 @@
 
     const bookingData = createBookingData();
     let startTimes = $state([
-        '9:30 AM',
-        '10:00 AM',
-        '10:30 AM',
-        '11:00 AM',
-        '11:30 AM',
-        '12:00 PM',
-        '12:30 PM',
-        '1:00 PM',
-        '1:30 PM',
-        '2:00 PM',
-        '2:30 PM',
-        '3:00 PM',
+        { dt: '0930', text: '9:30 AM' },
+        { dt: '1000', text: '10:00 AM' },
+        { dt: '1030', text: '10:30 AM' },
+        { dt: '1100', text: '11:00 AM' },
+        { dt: '1130', text: '11:30 AM' },
+        { dt: '1200', text: '12:00 PM' },
+        { dt: '1230', text: '12:30 PM' },
+        { dt: '1300', text: '1:00 PM' },
+        { dt: '1330', text: '1:30 PM' },
+        { dt: '1400', text: '2:00 PM' },
+        { dt: '1430', text: '2:30 PM' },
+        { dt: '1500', text: '3:00 PM' },
+        { dt: '1530', text: '3:30 PM' },
+        { dt: '1600', text: '4:00 PM' },
+        { dt: '1630', text: '4:30 PM' }
     ]);
 
-    $effect(() => {
+    $effect(async () => {
         console.log('TimePicker > bookingData.date', bookingData.date);
-        
+        let timeLoader = document.getElementById('time-loader');
+        timeLoader.classList.remove('hidden');
+
+        let timeField = document.getElementById('time-field');
+        timeField.classList.add('hidden');
+
+        let response = await fetch('/');
+        timeLoader.classList.add('hidden');
+        timeField.classList.remove('hidden');
     });
     
     const selectTime = () => {
@@ -57,15 +68,17 @@
                 selectTime();
             });
         });
+
+        startTimes.push({ dt: '111', text: '111' });
     });
 </script>
 
 <div class="time-picker">
-    <div class="loader-wrapper">
+    <div class="loader-wrapper hidden" id="time-loader">
         <div class="loader"></div>
         <h3>Finding available times...</h3>
     </div>
-    <div class="fieldset hidden">
+    <div class="fieldset hidden" id="time-field">
         <h4 class="label">Time</h4>
         <p class="help">What time works best for you?</p>
 
@@ -76,7 +89,7 @@
             </button>
             <ul class="select-options hidden">
                 {#each startTimes as time}
-                    <li class="option" data-time={time}>{time}</li>
+                    <li class="option" data-time={time.dt}>{time.text}</li>
                 {/each}
             </ul>
         </div>
