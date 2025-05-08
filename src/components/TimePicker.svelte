@@ -2,7 +2,7 @@
     // @ts-nocheck
 
     import { onMount } from 'svelte';
-    import { createBookingData, parseDate, unparseDate } from '$lib/data/booking.svelte';
+    import { createBookingData, parseDate, unparseDate, unparseTime } from '$lib/data/booking.svelte';
     import { createServicesData } from '$lib/data/services.svelte';
     import ClockIcon from '$lib/images/icons/clock.svg';
 
@@ -70,31 +70,66 @@
                 parseInt(d.time.slice(0, 2)),
                 parseInt(d.time.slice(2))
             );
-            bookedTimes.push(`${dt.getHours().toString().padStart(2, '0')}${dt.getMinutes().toString().padStart(2, '0')}`);
+            bookedTimes.push(unparseTime(dt));
 
             for (let i = 0; i < slots - 1; i++) {
                 dt.setMinutes(dt.getMinutes() + 30);
-                bookedTimes.push(`${dt.getHours().toString().padStart(2, '0')}${dt.getMinutes().toString().padStart(2, '0')}`);
+                bookedTimes.push(unparseTime(dt));
             }
         });
         console.log('bookedTimes', bookedTimes);
 
-        let selectedService = servicesData.getServiceById(bookingData.service);
+        let selectedService = servicesData.getServiceById(parseInt(bookingData.service.toString()));
+        console.log('selectedService', selectedService);
         // TODO Make sure to account for the duration of the selected service.
 
         let unbookedTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
-        for (let i = 0, count = unbookedTimes.length; i < count; i++) {
-            let b = unbookedTimes[i];
+        console.log('unbookedTimes', unbookedTimes);
+        let slotCount = selectedService.duration / 30;
+
+        for (let i = 0, count = allStartTimes.length; i < count; i++) {
+            let startTime = allStartTimes[i].dt;
+            let serviceAtStartTime = sortedData.find(d => d.time === startTime);
+            console.log(`i = ${i}; startTime = ${startTime}; serviceAtStartTime ==>`, serviceAtStartTime);
+        }
+
+        /* for (let i = 0, count = allStartTimes.length; i < count; i++) {
+            let b = allStartTimes[i];
+            console.log(`i = ${i}; b ==>`, b);
+            
             let dt = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-                parseInt(b.slice(0, 2)),
-                parseInt(b.slice(2))
+                now.getFullYear(), now.getMonth(), now.getDate(),
+                parseInt(b.dt.slice(0, 2)), parseInt(b.dt.slice(2))
             );
             let duration = selectedService.duration;
+            console.log('  >> dt', dt);
+
+            let nextDt = new Date(
+                now.getFullYear(), now.getMonth(), now.getDate(),
+                parseInt(b.dt.slice(0, 2)), parseInt(b.dt.slice(2))
+            );
+            // nextDt.setMinutes(nextDt.getMinutes() + selectedService.duration);
+            // console.log('  >> nextDt', nextDt);
             
-        }
+            let nextTime = unparseTime(nextDt);
+            console.log(`  >> slotCount = ${slotCount}; nextTime ==>`, nextTime);
+            // if (!unbookedTimes.find(u => u.dt === nextTime)) {
+            //     bookedTimes.push(unparseTime(dt));
+            // }
+
+            let j = 1;
+            while (j < (slotCount - 1)) {
+                dt.setMinutes(dt.getMinutes() + (j * 30));
+                nextTime = unparseTime(dt);
+
+                if (unbookedTimes.find(u => u.dt === nextTime)) {
+                    bookedTimes.push(unparseTime(dt));
+                }
+                bookedTimes.push(unbookedTimes[i + j + 1]);
+                j++;
+                i += j;
+            }
+        } */
 
         // let output = [];
         // let now = new Date();

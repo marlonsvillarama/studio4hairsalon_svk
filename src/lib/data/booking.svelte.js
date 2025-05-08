@@ -12,6 +12,11 @@ export const parseDate = (str) => {
     return new Date(str.slice(0, 4), parseInt(str.slice(4, 6)) - 1, str.slice(6));
 };
 
+export const unparseTime = (dt) => {
+    return dt.getHours().toString().padStart(2, '0') +
+        dt.getMinutes().toString().padStart(2, '0');
+};
+
 export const unparseDate = (date) => {
     return date.getFullYear() +
         (date.getMonth() + 1).toString().padStart(2, '0') +
