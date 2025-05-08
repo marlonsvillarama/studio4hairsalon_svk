@@ -82,6 +82,20 @@
         let selectedService = servicesData.getServiceById(bookingData.service);
         // TODO Make sure to account for the duration of the selected service.
 
+        let unbookedTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
+        for (let i = 0, count = unbookedTimes.length; i < count; i++) {
+            let b = unbookedTimes[i];
+            let dt = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
+                parseInt(b.slice(0, 2)),
+                parseInt(b.slice(2))
+            );
+            let duration = selectedService.duration;
+            
+        }
+
         // let output = [];
         // let now = new Date();
         // for (let i = 0, count = allStartTimes.length; i < count; i++) {
