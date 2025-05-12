@@ -30,160 +30,92 @@
         { dt: '1600', text: '4:00 PM' },
         { dt: '1630', text: '4:30 PM' }
     ];
-    let availableTimes = $derived.by(async() => {
+    
+    let availableTimes = $derived.by(() => {
         console.log('TimePicker > bookingData.date', bookingData.date);
         let dt = unparseDate(bookingData.date);
         console.log('TimePicker > dt', dt);
 
-        // let timeLoader = document.getElementById('time-loader');
-        // timeLoader.classList.remove('hidden');
-
-        // let timeField = document.getElementById('time-field');
-        // timeField.classList.add('hidden');
-
-        // let response = await fetch(API_URL + `?dt=${dt}`);
-        // let responseJSON = await response.json();
         let responseJSON = appointmentsData.getByDate(dt);
-        console.log('responseJSON', responseJSON);
-
-        let output = filterAvailableTimes({ data: responseJSON });
+        let output = getAvailableTimes({ data: responseJSON });
         console.log('$derived.by ==> output', output);
 
-        // timeLoader.classList.add('hidden');
-        // timeField.classList.remove('hidden');
         return output;
     });
-    // let bookedTimes = $state([]);
 
-    $effect(async() => {
-    });
-
-    const filterAvailableTimes = (options) => {
+    const getAvailableTimes = (options) => {
         let { data } = options;
         let bookedTimes = [];
         let now = new Date();
 
         let sortedData = data.sort((a, b) => a.time - b.time);
-        console.log('sortedData', sortedData);
-        /* sortedData.forEach(d => {
-            let svc = servicesData.getServiceById(d.service);
-            let slots = svc.duration / 30;
-
-            let dt = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-                parseInt(d.time.slice(0, 2)),
-                parseInt(d.time.slice(2))
-            );
-            bookedTimes.push(unparseTime(dt));
-
-            for (let i = 0; i < slots - 1; i++) {
-                dt.setMinutes(dt.getMinutes() + 30);
-                bookedTimes.push(unparseTime(dt));
-            }
-        });
-        console.log('bookedTimes', bookedTimes);
-
-        let selectedService = servicesData.getServiceById(parseInt(bookingData.service.toString()));
-        console.log('selectedService', selectedService);
-        // TODO Make sure to account for the duration of the selected service.
-
-        let unbookedTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
-        console.log('unbookedTimes', unbookedTimes);
-        let slotCount = selectedService.duration / 30; */
-
-        // let bookedTimes = [];
-
         let selectedService = servicesData.getServiceById(parseInt(bookingData.service.toString()));
         let selectedSlots = selectedService.duration / 30;
+        let serviceStartTimes = [];
 
-        for (let i = 0, count = allStartTimes.length; i < count; i++) {
+        allTimesLoop: for (let i = 0, count = allStartTimes.length; i < count; i++) {
             let startTime = allStartTimes[i].dt;
             let serviceAtStartTime = sortedData.find(d => d.time === startTime);
-            console.log(`*** START i = ${i}; startTime = ${startTime}; serviceAtStartTime ==>`, serviceAtStartTime);
+            let serviceSlots = 0;
+            let svc = '';
 
             if (serviceAtStartTime) {
-                let svc = servicesData.getServiceById(serviceAtStartTime.service);
-                let serviceSlots = svc.duration / 30;
-                console.log(`serviceSlots = ${serviceSlots}; svc ==>`, svc);
-                
-                for (let j = 0; j < serviceSlots, (i + j) < count; j++) {
-                    bookedTimes.push(allStartTimes[i + j].dt)
+                svc = servicesData.getServiceById(serviceAtStartTime.service);
+                serviceSlots = svc.duration / 30;
+                console.log(`** serviceAtStartTime ** serviceSlots = ${serviceSlots}; svc ==>`, svc);
+
+                for (let j = 0; j < serviceSlots && (i + j) < count; j++) {
+                    console.log(`j = ${j}; [i + j] = ${i + j}; dt = ${allStartTimes[i + j].dt}`);
+                    bookedTimes.push(allStartTimes[i + j].dt);
                 }
 
                 i += (serviceSlots - 1);
+                continue;
             }
 
-            console.log(`selectedSlots = ${selectedSlots}; selectedService ==>`, selectedService);
-            for (let j = 1; j < selectedSlots, (i + j) < count; j++) {
+            let hasService = false;
+            let slotIndex = i;
+            selectedSlotsLoop: for (let j = 0; j < selectedSlots; j++) {
+                let slotTime = allStartTimes[i + j]?.dt;
+                let serviceAtSlotTime = sortedData.find(d => d.time === slotTime);
+                console.log(`** selectedSlotsLoop ** i = ${i}; j = ${j}; slotTime = ${slotTime}; serviceAtStartTime ==>`, serviceAtSlotTime);
+
+                if (serviceAtSlotTime) {
+                    svc = servicesData.getServiceById(serviceAtSlotTime.service);
+                    serviceSlots = svc.duration / 30;
+                    slotIndex = j;
+                    hasService = true;
+                    break selectedSlotsLoop;
+                }
+            }
+            console.log(`hasService = ${hasService}; slotIndex = ${slotIndex}`);
+
+            if (hasService === true) {
+                for (let j = 0; j < slotIndex; j++) {
+                    bookedTimes.push(allStartTimes[i + j].dt);
+                }
+
+                for (let j = 0; j <= serviceSlots; j++) {
+                    bookedTimes.push(allStartTimes[i + slotIndex + j].dt);
+                }
+                
+                console.log(`** selectedSlotsLoop ** i = ${i}; bookedTimes ===>>`, bookedTimes);
+                i += (slotIndex + selectedSlots - 1);
+                continue;
+            }
+
+            defaultLoop: for (let j = 1; j < selectedSlots; j++) {
+                if (i + selectedSlots >= count) {
+                    bookedTimes.push(allStartTimes[i].dt);
+                    break defaultLoop;
+                }
+
                 bookedTimes.push(allStartTimes[i + j].dt);
             }
-
-            i += selectedSlots;
+            console.log(`** defaultLoop ** i = ${i}; startTime = ${startTime}; bookedTimes ===>>`, bookedTimes);
+            i += (selectedSlots - 1);
         }
-        console.log('bookedTimes', bookedTimes);
 
-        /* for (let i = 0, count = allStartTimes.length; i < count; i++) {
-            let b = allStartTimes[i];
-            console.log(`i = ${i}; b ==>`, b);
-            
-            let dt = new Date(
-                now.getFullYear(), now.getMonth(), now.getDate(),
-                parseInt(b.dt.slice(0, 2)), parseInt(b.dt.slice(2))
-            );
-            let duration = selectedService.duration;
-            console.log('  >> dt', dt);
-
-            let nextDt = new Date(
-                now.getFullYear(), now.getMonth(), now.getDate(),
-                parseInt(b.dt.slice(0, 2)), parseInt(b.dt.slice(2))
-            );
-            // nextDt.setMinutes(nextDt.getMinutes() + selectedService.duration);
-            // console.log('  >> nextDt', nextDt);
-            
-            let nextTime = unparseTime(nextDt);
-            console.log(`  >> slotCount = ${slotCount}; nextTime ==>`, nextTime);
-            // if (!unbookedTimes.find(u => u.dt === nextTime)) {
-            //     bookedTimes.push(unparseTime(dt));
-            // }
-
-            let j = 1;
-            while (j < (slotCount - 1)) {
-                dt.setMinutes(dt.getMinutes() + (j * 30));
-                nextTime = unparseTime(dt);
-
-                if (unbookedTimes.find(u => u.dt === nextTime)) {
-                    bookedTimes.push(unparseTime(dt));
-                }
-                bookedTimes.push(unbookedTimes[i + j + 1]);
-                j++;
-                i += j;
-            }
-        } */
-
-        // let output = [];
-        // let now = new Date();
-        // for (let i = 0, count = allStartTimes.length; i < count; i++) {
-        //     if (!bookedTimes.includes(allStartTimes[i])) {
-        //         output.push(allStartTimes[i]);
-        //         continue;
-        //     }
-
-        //     let dt = new Date(
-        //         now.getFullYear,
-        //         now.getMonth(),
-        //         now.getDate(),
-        //         bookedTimes.
-        //     );
-        // }
-
-        // let bookedServices = sortedData.map(d => d.service);
-        // let serviceData = allServices.filter(d => bookedServices.includes(d.id));
-        // console.log('serviceData', serviceData);
-
-        // let tempTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
-        
         return allStartTimes.filter(t => !bookedTimes.includes(t.dt));
     };
     

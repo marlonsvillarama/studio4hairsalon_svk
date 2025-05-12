@@ -65,6 +65,7 @@
                 break;
             }
             case 2: {
+                console.log('bookingData', bookingData);
                 if (!bookingData.name || !bookingData.email || !bookingData.phone) {
                     alert('Please complete your personal details.');
                     return false;

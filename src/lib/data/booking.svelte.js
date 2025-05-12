@@ -33,7 +33,7 @@ export const createBookingData = () => {
         get time () { return bookingData.time; },
         
         set date (value) { bookingData.date = value; },
-        set email (value) { bookingData.email = value || ''; },
+        set email (value) { bookingData.email = value || ''; console.log('bookingData.email', bookingData.email); },
         set name (value) { bookingData.name = value || ''; },
         set phone (value) { bookingData.phone = value || ''; },
         set service (value) { bookingData.service = value || ''; },

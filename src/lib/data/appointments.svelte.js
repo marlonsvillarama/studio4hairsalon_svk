@@ -3,21 +3,21 @@ let appointments = $state(
         name: "Customer 1",
         email: "customer1@gmail.com",
         service: 13,
-        date: "20250510",
-        time: "1330"
+        date: "20250513",
+        time: "1000"
     },
     {
         name: "Customer 2",
         email: "customer_02@gmail.com",
         service: 1,
-        date: "20250510",
-        time: "1000"
+        date: "20250513",
+        time: "1400"
     },
     {
         name: "Customer 3",
         email: "XXXXXXXXXXXXXXXXXXXXX",
         service: 12,
-        date: "20250511",
+        date: "20250514",
         time: "1100"
     }]
 );
