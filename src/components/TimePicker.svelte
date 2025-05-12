@@ -2,11 +2,13 @@
     // @ts-nocheck
 
     import { onMount } from 'svelte';
+    import { createAppointmentsData } from '$lib/data/appointments.svelte';
     import { createBookingData, parseDate, unparseDate, unparseTime } from '$lib/data/booking.svelte';
     import { createServicesData } from '$lib/data/services.svelte';
     import ClockIcon from '$lib/images/icons/clock.svg';
 
     const API_URL = 'https://1j6rfkw7g4.execute-api.ap-southeast-2.amazonaws.com/default/appointments';
+    const appointmentsData = createAppointmentsData();
     const bookingData = createBookingData();
     const servicesData = createServicesData();
     const allServices = servicesData.services;
@@ -28,29 +30,32 @@
         { dt: '1600', text: '4:00 PM' },
         { dt: '1630', text: '4:30 PM' }
     ];
-    let availableTimes = $state([]);
-    // let bookedTimes = $state([]);
-
-    $effect(async () => {
+    let availableTimes = $derived.by(async() => {
         console.log('TimePicker > bookingData.date', bookingData.date);
         let dt = unparseDate(bookingData.date);
         console.log('TimePicker > dt', dt);
 
-        let timeLoader = document.getElementById('time-loader');
-        timeLoader.classList.remove('hidden');
+        // let timeLoader = document.getElementById('time-loader');
+        // timeLoader.classList.remove('hidden');
 
-        let timeField = document.getElementById('time-field');
-        timeField.classList.add('hidden');
+        // let timeField = document.getElementById('time-field');
+        // timeField.classList.add('hidden');
 
-        let response = await fetch(API_URL + `?dt=${dt}`);
-        let responseJSON = await response.json();
+        // let response = await fetch(API_URL + `?dt=${dt}`);
+        // let responseJSON = await response.json();
+        let responseJSON = appointmentsData.getByDate(dt);
         console.log('responseJSON', responseJSON);
 
-        availableTimes = filterAvailableTimes({ data: responseJSON });
-        console.log('availableTimes', availableTimes);
+        let output = filterAvailableTimes({ data: responseJSON });
+        console.log('$derived.by ==> output', output);
 
-        timeLoader.classList.add('hidden');
-        timeField.classList.remove('hidden');
+        // timeLoader.classList.add('hidden');
+        // timeField.classList.remove('hidden');
+        return output;
+    });
+    // let bookedTimes = $state([]);
+
+    $effect(async() => {
     });
 
     const filterAvailableTimes = (options) => {
@@ -59,7 +64,8 @@
         let now = new Date();
 
         let sortedData = data.sort((a, b) => a.time - b.time);
-        sortedData.forEach(d => {
+        console.log('sortedData', sortedData);
+        /* sortedData.forEach(d => {
             let svc = servicesData.getServiceById(d.service);
             let slots = svc.duration / 30;
 
@@ -85,13 +91,38 @@
 
         let unbookedTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
         console.log('unbookedTimes', unbookedTimes);
-        let slotCount = selectedService.duration / 30;
+        let slotCount = selectedService.duration / 30; */
+
+        // let bookedTimes = [];
+
+        let selectedService = servicesData.getServiceById(parseInt(bookingData.service.toString()));
+        let selectedSlots = selectedService.duration / 30;
 
         for (let i = 0, count = allStartTimes.length; i < count; i++) {
             let startTime = allStartTimes[i].dt;
             let serviceAtStartTime = sortedData.find(d => d.time === startTime);
-            console.log(`i = ${i}; startTime = ${startTime}; serviceAtStartTime ==>`, serviceAtStartTime);
+            console.log(`*** START i = ${i}; startTime = ${startTime}; serviceAtStartTime ==>`, serviceAtStartTime);
+
+            if (serviceAtStartTime) {
+                let svc = servicesData.getServiceById(serviceAtStartTime.service);
+                let serviceSlots = svc.duration / 30;
+                console.log(`serviceSlots = ${serviceSlots}; svc ==>`, svc);
+                
+                for (let j = 0; j < serviceSlots, (i + j) < count; j++) {
+                    bookedTimes.push(allStartTimes[i + j].dt)
+                }
+
+                i += (serviceSlots - 1);
+            }
+
+            console.log(`selectedSlots = ${selectedSlots}; selectedService ==>`, selectedService);
+            for (let j = 1; j < selectedSlots, (i + j) < count; j++) {
+                bookedTimes.push(allStartTimes[i + j].dt);
+            }
+
+            i += selectedSlots;
         }
+        console.log('bookedTimes', bookedTimes);
 
         /* for (let i = 0, count = allStartTimes.length; i < count; i++) {
             let b = allStartTimes[i];
@@ -197,7 +228,7 @@
         <div class="loader"></div>
         <h3>Finding available times...</h3>
     </div>
-    <div class="fieldset hidden" id="time-field">
+    <div class="fieldset" id="time-field">
         <h4 class="label">Time</h4>
         <p class="help">What time works best for you?</p>
 
