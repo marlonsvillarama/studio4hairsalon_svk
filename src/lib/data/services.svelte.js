@@ -95,7 +95,7 @@ export const createServicesData = () => {
 
         // @ts-ignore
         getServiceById (id) {
-            console.log('getServiceById', id);
+            // console.log('getServiceById', id);
             // @ts-ignore
             return this.services.find(s => s.id === id);
         },

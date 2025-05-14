@@ -1,6 +1,6 @@
 <script>
     // @ts-nocheck
-    import { createBookingData, parseDate } from "$lib/data/booking.svelte";
+    import { createBookingData, parseDate, unparseDate } from "$lib/data/booking.svelte";
     
     const allMonths = [
         'January',
@@ -17,7 +17,7 @@
         'December'
     ];
 
-    let { ondateclick } = $props();
+    // let { ondateclick } = $props();
 
     let bookingData = createBookingData();
     let currentDate = new Date();
@@ -122,17 +122,22 @@
     };
 
     const selectDate = (e) => {
+        // bookingData.date = e.target.dataset.date;
         bookingData.date = parseDate(e.target.dataset.date);
-        ondateclick();
+        // ondateclick();
     };
 </script>
 
 {#snippet calendarDay(options)}
     <button type="button"
-        class={[ "date", { outside: options.active === false } ]}
-        data-date={options.date.getFullYear() +
-            (options.date.getMonth() + 1).toString().padStart(2, '0') +
-            options.date.getDate().toString().padStart(2, '0')}
+        class={[
+            "date",
+            { 
+                outside: options.active === false,
+                selected: unparseDate(bookingData.date) === unparseDate(options.date)
+            }
+        ]}
+        data-date={unparseDate(options.date)}
         onclick={(options) => selectDate(options)}
     >
         {options.date.getDate()}
@@ -207,7 +212,8 @@
 
 <style>
     .calendar {
-        border: 1px solid var(--color-accent);
+        /* border: 1px solid var(--color-accent); */
+        border: 1px solid var(--color-border-lite);
         border-radius: 0.5rem;
         padding: 0.75rem 1.25rem;
         color: var(--color-grey-dark-03-rgb);
@@ -272,5 +278,8 @@
     .outside {
         color: var(--color-border-lite);
         cursor: not-allowed;
+    }
+    .selected {
+        background-color: var(--color-bg-btn) !important;
     }
 </style>

@@ -54,7 +54,7 @@
         const selectedValue = selectButton?.querySelector('.selected-value');
         options?.forEach(option => {
             option.addEventListener('click', () => {
-                console.log('selectedId', option.dataset.id);
+                // console.log('selectedId', option.dataset.id);
                 handleOptionSelect(option.dataset.id);
                 toggleDropdown();
             });

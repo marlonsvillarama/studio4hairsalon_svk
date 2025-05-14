@@ -7,7 +7,6 @@
     import { createServicesData } from '$lib/data/services.svelte';
     import ClockIcon from '$lib/images/icons/clock.svg';
 
-    const API_URL = 'https://1j6rfkw7g4.execute-api.ap-southeast-2.amazonaws.com/default/appointments';
     const appointmentsData = createAppointmentsData();
     const bookingData = createBookingData();
     const servicesData = createServicesData();
@@ -32,15 +31,15 @@
     ];
     
     let availableTimes = $derived.by(() => {
-        console.log('TimePicker > bookingData.date', bookingData.date);
+        // console.log('TimePicker > bookingData.date', bookingData.date);
         let dt = unparseDate(bookingData.date);
-        console.log('TimePicker > dt', dt);
+        // console.log('TimePicker > dt', dt);
 
         let responseJSON = appointmentsData.getByDate(dt);
-        let output = getAvailableTimes({ data: responseJSON });
-        console.log('$derived.by ==> output', output);
+        return getAvailableTimes({ data: responseJSON });
+        // console.log('$derived.by ==> output', output);
 
-        return output;
+        // return output;
     });
 
     const getAvailableTimes = (options) => {
@@ -62,10 +61,10 @@
             if (serviceAtStartTime) {
                 svc = servicesData.getServiceById(serviceAtStartTime.service);
                 serviceSlots = svc.duration / 30;
-                console.log(`** serviceAtStartTime ** serviceSlots = ${serviceSlots}; svc ==>`, svc);
+                // console.log(`** serviceAtStartTime ** serviceSlots = ${serviceSlots}; svc ==>`, svc);
 
                 for (let j = 0; j < serviceSlots && (i + j) < count; j++) {
-                    console.log(`j = ${j}; [i + j] = ${i + j}; dt = ${allStartTimes[i + j].dt}`);
+                    // console.log(`j = ${j}; [i + j] = ${i + j}; dt = ${allStartTimes[i + j].dt}`);
                     bookedTimes.push(allStartTimes[i + j].dt);
                 }
 
@@ -78,7 +77,7 @@
             selectedSlotsLoop: for (let j = 0; j < selectedSlots; j++) {
                 let slotTime = allStartTimes[i + j]?.dt;
                 let serviceAtSlotTime = sortedData.find(d => d.time === slotTime);
-                console.log(`** selectedSlotsLoop ** i = ${i}; j = ${j}; slotTime = ${slotTime}; serviceAtStartTime ==>`, serviceAtSlotTime);
+                // console.log(`** selectedSlotsLoop ** i = ${i}; j = ${j}; slotTime = ${slotTime}; serviceAtStartTime ==>`, serviceAtSlotTime);
 
                 if (serviceAtSlotTime) {
                     svc = servicesData.getServiceById(serviceAtSlotTime.service);
@@ -88,7 +87,7 @@
                     break selectedSlotsLoop;
                 }
             }
-            console.log(`hasService = ${hasService}; slotIndex = ${slotIndex}`);
+            // console.log(`hasService = ${hasService}; slotIndex = ${slotIndex}`);
 
             if (hasService === true) {
                 for (let j = 0; j < slotIndex; j++) {
@@ -99,7 +98,7 @@
                     bookedTimes.push(allStartTimes[i + slotIndex + j].dt);
                 }
                 
-                console.log(`** selectedSlotsLoop ** i = ${i}; bookedTimes ===>>`, bookedTimes);
+                // console.log(`** selectedSlotsLoop ** i = ${i}; bookedTimes ===>>`, bookedTimes);
                 i += (slotIndex + selectedSlots - 1);
                 continue;
             }
@@ -112,47 +111,17 @@
 
                 bookedTimes.push(allStartTimes[i + j].dt);
             }
-            console.log(`** defaultLoop ** i = ${i}; startTime = ${startTime}; bookedTimes ===>>`, bookedTimes);
+            // console.log(`** defaultLoop ** i = ${i}; startTime = ${startTime}; bookedTimes ===>>`, bookedTimes);
             i += (selectedSlots - 1);
         }
 
         return allStartTimes.filter(t => !bookedTimes.includes(t.dt));
     };
     
-    const selectTime = () => {
-        console.log('TimePicker selectTime', bookingData.time);
-        const timeSelect = document.getElementById('timeSelect');
-        const selectedValue = timeSelect?.querySelector('.selected-value');
-        selectedValue.textContent = bookingData.time;
-
-        toggleOptions();
+    const selectTime = (e) => {
+        let button = e.target;
+        bookingData.time = button.dataset.time;
     };
-
-    const toggleOptions = () => {
-        let container = document.getElementById('timeSelect');
-        let selectOptions = container?.querySelector('.select-options');
-        
-        const isOpen = selectOptions?.classList.contains('hidden') === false;
-        selectOptions?.classList.toggle('hidden');
-    };
-
-    onMount(() => {
-        let container = document.getElementById('timeSelect');
-        let selectButton = container?.querySelector('.select-button');
-        selectButton?.addEventListener('click', () => { toggleOptions(); });
-
-        let selectOptions = container?.querySelectorAll('.select-options li');
-        selectOptions.forEach(li => {
-            li.addEventListener('click', (e) => {
-                bookingData.time = e.target.dataset.time;
-                console.log('selected time', bookingData.time);
-
-                selectTime();
-            });
-        });
-
-        // startTimes.push({ dt: '111', text: '111' });
-    });
 </script>
 
 <div class="time-picker">
@@ -164,16 +133,17 @@
         <h4 class="label">Time</h4>
         <p class="help">What time works best for you?</p>
 
-        <div class="select" id="timeSelect">
-            <button class="select-button" type="button">
-                <span class="selected-value"></span>
-                <img src={ClockIcon} alt="Pick a time">
-            </button>
-            <ul class="select-options hidden">
-                {#each availableTimes as time}
-                    <li class="option" data-time={time.dt}>{time.text}</li>
-                {/each}
-            </ul>
+        <div id="time-list">
+            {#each availableTimes as time}
+                <button
+                    class={[
+                        "time-option",
+                        { selected: bookingData.time === time.dt }
+                    ]}
+                    data-time={time.dt}
+                    onclick={selectTime}
+                >{time.text}</button>
+            {/each}
         </div>
     </div>
 </div>
@@ -191,7 +161,6 @@
         color: var(--color-grey-dark-03-rgb);
         font-size: var(--fs-md);
         font-weight: 500;
-        /* margin-bottom: 0.25rem; */
         margin-left: 0.25rem;
     }
     .help {
@@ -202,7 +171,28 @@
         margin-bottom: 0.25rem;
         margin-left: 0.25rem;
     }
-    .select {
+
+    #time-list {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        grid-auto-columns: 1fr;
+    }
+    #time-list > button {
+        padding: 0.75rem;
+        border: 0;
+        border-radius: 0.25rem;
+        background-color: var(--color-border-lite-extra);
+        box-shadow: var(--button-shadow);
+    }
+    #time-list > button:hover {
+        background-color: var(--color-border-lite);
+    }
+    .selected {
+        background-color: var(--color-bg-btn) !important;
+    }
+
+    /* .select {
         position: relative;
         display: inline-block;
         width: 100%;
@@ -221,16 +211,16 @@
     }
     .selected-value {
         color: var(--color-grey-dark-03-rgb);
-    }
-    img {
+    } */
+    /* img {
         width: 1.5rem;
         height: 1.5rem;
-        /* border-left: 0.5rem solid transparent;
+        /!* border-left: 0.5rem solid transparent;
         border-right: 0.5rem solid transparent;
         border-top: 0.5rem solid var(--color-grey-dark-03-rgb);
-        transition: transform ease-in-out 300ms; */
-    }
-    ul {
+        transition: transform ease-in-out 300ms; *!/
+    } */
+    /* ul {
         position: absolute;
         top: 100%;
         left: 0;
@@ -271,7 +261,7 @@
     li:focus {
         background-color: #f2f2f2;
         font-weight: 400;
-    }
+    } */
 
     /* HTML: <div class="loader"></div> */
     .loader-wrapper {

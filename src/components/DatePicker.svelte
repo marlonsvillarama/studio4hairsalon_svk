@@ -3,14 +3,14 @@
 
     import { onMount } from 'svelte';
     import { createBookingData } from '$lib/data/booking.svelte';
-    import CalendarIcon from '$lib/images/icons/calendar.svg';
+    // import CalendarIcon from '$lib/images/icons/calendar.svg';
     import Calendar from './Calendar.svelte';
 
     let { ondateselect } = $props();
     
     const bookingData = createBookingData();
     
-    const selectDate = () => {
+    /* const selectDate = () => {
         console.log('DatePicker selectDate', bookingData.date);
         const dateSelect = document.getElementById('dateSelect');
         const selectedValue = dateSelect?.querySelector('.selected-value');
@@ -22,29 +22,31 @@
         });
 
         toggleCalendar();
-    };
+    }; */
 
-    const toggleCalendar = () => {
+    /* const toggleCalendar = () => {
         let container = document.getElementById('dateSelect');
         let calendar = container?.querySelector('.calendar');
         
         const isOpen = calendar?.classList.contains('hidden') === false;
         calendar?.classList.toggle('hidden');
-    };
+    }; */
 
-    onMount(() => {
+    /* onMount(() => {
         let container = document.getElementById('dateSelect');
         let selectButton = container?.querySelector('.select-button');
         selectButton?.addEventListener('click', () => { toggleCalendar(); });
-    });
+    }); */
 </script>
 
 <div class="date-picker">
     <div class="fieldset">
         <h4 class="label">Date</h4>
         <p class="help">When would you like to drop by?</p>
+        <Calendar />
+        <!-- <Calendar ondateclick={selectDate} /> -->
 
-        <div class="select" id="dateSelect">
+        <!-- <div class="select" id="dateSelect">
             <button class="select-button" type="button">
                 <span class="selected-value"></span>
                 <img src={CalendarIcon} alt="Pick a date">
@@ -52,7 +54,7 @@
             <div class="calendar hidden">
                 <Calendar ondateclick={selectDate} />
             </div>
-        </div>
+        </div> -->
     </div>
 </div>
 
@@ -80,7 +82,7 @@
         margin-bottom: 0.25rem;
         margin-left: 0.25rem;
     }
-    .select {
+    /* .select {
         position: relative;
         display: inline-block;
         width: 100%;
@@ -106,18 +108,18 @@
         /* border-left: 0.5rem solid transparent;
         border-right: 0.5rem solid transparent;
         border-top: 0.5rem solid var(--color-grey-dark-03-rgb);
-        transition: transform ease-in-out 300ms; */
-    }
-    .calendar {
+        transition: transform ease-in-out 300ms; *!/
+    } */
+    /* .calendar {
         position: absolute;
         top: 100%;
         left: 0;
         width: 25rem;
         background-color: white;
-        /* border: 1px solid var(--color-accent); */
+        /* border: 1px solid var(--color-accent); *!/
         border-radius: 0.5rem;
         margin: 0.5rem 0 0;
         box-shadow: var(--button-shadow);
         z-index: 9999;
-    }
+    } */
 </style>

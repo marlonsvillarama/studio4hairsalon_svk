@@ -6,37 +6,51 @@
     import ServicePicker from './ServicePicker.svelte';
     import DatePicker from './DatePicker.svelte';
     import TimePicker from './TimePicker.svelte';
+    import BookingSummary from './BookingSummary.svelte';
 
+    import { API_URL } from '$lib/data/api.svelte';
     import { createBookingData } from '$lib/data/booking.svelte';
     import { createServicesData } from '$lib/data/services.svelte';
+    import { onMount } from 'svelte';
 
     const bookingData = createBookingData();
     const servicesData = createServicesData();
     let step = $state(1);
     let availableTimes = $state([]);
+    let submitted = $state(false);
+    let success = $state(false);
 
     $effect(() => {
         let bookingForm = document.getElementById('bookingForm');
         let allSteps = bookingForm?.querySelectorAll('.step');
-        allSteps?.forEach(step => {
-            step.classList.remove('active');
+        allSteps?.forEach(s => {
+            s.classList.remove('active');
         });
 
         let activeStep = bookingForm?.querySelector(`[data-step="${step.toString()}"]`);
-        console.log('activeStep', activeStep);
+        // console.log('activeStep', activeStep);
         if (activeStep) {
             activeStep.classList.add('active');
         }
     });
 
+    $effect(() => {
+        console.log('bookingData', bookingData.data);
+        console.log(`submitted = ${submitted}; success = ${success}`);
+    })
+
+    const goHome = () => {
+        window.location = '/';
+    };
+
     const navNext = () => {
+        console.log('**** step', step);
         if (step >= 3) {
-            step = 3;
+            submitData();
             return;
         }
 
         if (validateStep(step) === false) { return; }
-
         step++;
     };
 
@@ -47,6 +61,34 @@
         }
 
         step--;
+    };
+
+    const goBook = () => {
+        window.location = '/book';
+    };
+
+    const submitData = async () => {
+        /* let submitResponse = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(bookingData.data)
+        });
+        let jsonResponse = await submitResponse.json();
+        console.log('jsonResponse', jsonResponse); */
+
+        let jsonResponse = {
+            success: true
+        };
+        submitted = true;
+        success = jsonResponse.success;
+
+        // let bookingForm = document.getElementById('bookingForm');
+        // let confirmForm = document.getElementById('confirmForm');
+    };
+
+    const tryAgain = () => {
+        step = 3;
+        submitted = false;
+        success = false;
     };
 
     const validateStep = (step) => {
@@ -77,12 +119,19 @@
 
         return true;
     };
+
+    onMount(() => bookingData.reset());
 </script>
 
 <section class="wrapper">
     <Stepper {step} />
     
-    <div class="form" id="bookingForm">
+    <div id="bookingForm"
+        class={[
+            "form",
+            { hidden: submitted === true }
+        ]}
+    >
         <div class="step step-1 active" data-step="1">
             <ServicePicker />
             {#if bookingData.service}
@@ -100,22 +149,58 @@
         </div>
 
         <div class="step confirm" data-step="3">
-            <div>
-                <h3>You have chosen the following service:</h3>
-                <span class="category">{servicesData.activeCategory.name}</span> - <span class="service">{servicesData.activeService.name}</span>
-            </div>
-            <div>
-                <span class="name">{bookingData.name}</span><br/>
-                <span class="name">{bookingData.phone}</span><br/>
-                <span class="name">{bookingData.email}</span>
+            <BookingSummary />
+        </div>
+
+        <div class="actions">
+            {#if step > 1 && step < 4}
+                <button type="button" onclick={navBack}>Go back</button>
+            {/if}
+            {#if step < 4}
+                <button type="button" class="cta" onclick={navNext}>{ step === 3 ? 'Submit' : 'Next' }</button>
+            {/if}
+            {#if step >= 4}
+                <div class="loader"></div>
+            {/if}
+        </div>
+    </div>
+
+    <div id="confirmForm"
+        class={[
+            "form",
+            { hidden: submitted === false }
+        ]}
+    >
+        <div class="step active">
+            <h1>{success === true ? 'Awesome!' : 'Something went wrong...'}</h1>
+            {#if success === true}
+                <p>You have successfully booked an appointment with <strong>Studio 04 Hair Salon</strong>. You should receive an email shortly containing its details.</p>
+                <p>Please note that service cancellations must be requested <strong><u>at least 1 day</u></strong> before your scheduled appointment.</p>
+            {:else}
+                <p>Your appointment did not go through this time. Please click the button below to try again.</p>
+            {/if}
+            
+            <p>For any questions or concerns, please feel free to contact us:</p>
+
+            <div class="contact">
+                <div class="row">
+                    <span>Phone:</span>
+                    <span>(06) 353-5678</span>
+                </div>
+                <div class="row">
+                    <span>Mobile:</span>
+                    <span>(022) 1888-5240</span>
+                </div>
             </div>
         </div>
 
         <div class="actions">
-            {#if step > 1}
-            <button type="button" onclick={navBack}>Go back</button>
+            {#if success === true}
+                <button type="button" onclick={goHome}>Return to Home page</button>
+                <button type="button" class="cta" onclick={goBook}>Book another appointment</button>
+            {:else}
+                <button type="button" class="cta" onclick={tryAgain}>Try again</button>
             {/if}
-            <button type="button" class="cta" onclick={navNext}>{ step >= 3 ? 'Submit' : 'Next' }</button>
         </div>
     </div>
 </section>
@@ -127,7 +212,7 @@
         gap: 2rem;
     }
     .step {
-        border: 0px solid green;
+        /* border: 1px solid green; */
         padding: 0;
         margin-bottom: 0.5rem;
         max-width: 50%;
@@ -148,9 +233,6 @@
     }
     .step > *:not(:last-child) {
         margin-bottom: 2rem;
-    }
-    .step.confirm {
-        border: 1px solid red;
     }
     .form {
         border: 0px solid red;
@@ -190,5 +272,50 @@
     }
     button.cta:hover {
         background-color: var(--color-bg-btn-hover);
+    }
+
+    .loader-wrapper {
+        display: flex;
+        flex-direction: row;
+        gap: 1rem;
+        align-items: center;
+    }
+    .loader {
+        width: 1.5rem;
+        padding: 0.25rem;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: var(--color-grey-dark-03-rgb);
+        --_m: 
+            conic-gradient(#0000 10%,#000),
+            linear-gradient(#000 0 0) content-box;
+        -webkit-mask: var(--_m);
+                mask: var(--_m);
+        -webkit-mask-composite: source-out;
+                mask-composite: subtract;
+        animation: l3 500ms infinite linear;
+    }
+    @keyframes l3 {to{transform: rotate(1turn)}}
+    .loader + h3 {
+        font-size: var(--fs-sm);
+        font-weight: 200;
+        letter-spacing: 0.25px;
+    }
+    
+    #confirmForm {
+        color: var(--color-grey-dark-03-rgb);
+        /* border: 1px solid red; */
+    }
+    #confirmForm p {
+        font-size: var(--fs-xs);
+    }
+    .contact > .row {
+        display: grid;
+        grid-template-columns: 4rem auto;
+        align-items: center;
+        font-size: var(--fs-xs);
+    }
+    .contact > .row:not(:last-child) {
+        margin-bottom: 0.5rem;
     }
 </style>

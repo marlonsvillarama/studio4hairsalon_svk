@@ -9,15 +9,15 @@
 </script>
 
 {#snippet text()}
-    <input type="text" {value}>
+    <input type="text" bind:value={value}>
 {/snippet}
 
 {#snippet email()}
-    <input type="email" {value}>
+    <input type="email" bind:value={value}>
 {/snippet}
 
 {#snippet phone()}
-    <input type="tel" {value}>
+    <input type="tel" bind:value={value}>
 {/snippet}
 
 <div class="fieldset">
