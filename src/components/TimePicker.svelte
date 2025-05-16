@@ -36,10 +36,10 @@
         // console.log('TimePicker > dt', dt);
 
         let responseJSON = appointmentsData.getByDate(dt);
-        return getAvailableTimes({ data: responseJSON });
-        // console.log('$derived.by ==> output', output);
+        let output = getAvailableTimes({ data: responseJSON });
+        console.log('$derived.by ==> output', output);
 
-        // return output;
+        return output;
     });
 
     const getAvailableTimes = (options) => {
@@ -59,7 +59,7 @@
             let svc = '';
 
             if (serviceAtStartTime) {
-                svc = servicesData.getServiceById(serviceAtStartTime.service);
+                svc = servicesData.getServiceById(serviceAtStartTime.sid);
                 serviceSlots = svc.duration / 30;
                 // console.log(`** serviceAtStartTime ** serviceSlots = ${serviceSlots}; svc ==>`, svc);
 
@@ -115,17 +115,25 @@
             i += (selectedSlots - 1);
         }
 
-        return allStartTimes.filter(t => !bookedTimes.includes(t.dt));
+        let output = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
+        console.log('getAvailableTimes >>> output', output);
+        return output;
     };
     
     const selectTime = (e) => {
         let button = e.target;
         bookingData.time = button.dataset.time;
     };
+
+    $effect(() => {
+        $inspect('availableTimes', availableTimes);
+    });
 </script>
 
 <div class="time-picker">
-    <div class="loader-wrapper hidden" id="time-loader">
+    <div class={[
+        "loader-wrapper hidden"
+    ]} id="time-loader">
         <div class="loader"></div>
         <h3>Finding available times...</h3>
     </div>
