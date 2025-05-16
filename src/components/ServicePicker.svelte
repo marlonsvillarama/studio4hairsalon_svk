@@ -8,63 +8,25 @@
 
     const bookingData = createBookingData();
     const servicesData = createServicesData();
+    let activeService = $state('');
+    let activeServiceName = $state('');
     let allServices = servicesData.list;
-
-    const findServiceById = (id) => {
-        return servicesData.services.find(d => d.id.toString() === id.toString());
-    };
-
-    const handleOptionSelect = (id) => {
-        let container = document.getElementById('serviceSelect');
-        let dropDown = container?.querySelector('.select-options');
-        let selectButton = container?.querySelector('.select-button');
-        
-        const options = dropDown?.querySelectorAll('li');
-        const selectedValue = selectButton?.querySelector('.selected-value');
-        const option = dropDown?.querySelector(`[data-id="${id.toString()}"]`);
-
-        options?.forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-
-        if (selectedValue) {
-            servicesData.activeService = findServiceById(option.dataset.id);
-            bookingData.service = option.dataset.id;
-
-        // @ts-ignore
-            let selectedText = `${option.dataset.category} - ${option.textContent.trim()}`;
-            selectedValue.textContent = selectedText;
-        }
+    let hideOptions = $state(true);
+    
+    const selectOption = (id) => {
+        activeService = id ? servicesData.getServiceById(id) : '';
+        activeServiceName = id ?  `${activeService.category.name} - ${activeService.name}` : '';
+        bookingData.service = id || '';
+        hideOptions = true;
     };
 
     const toggleDropdown = () => {
-        let container = document.getElementById('serviceSelect');
-        let dropDown = container?.querySelector('.select-options');
-        
-        const isOpen = dropDown?.classList.contains('hidden') === false;
-        dropDown?.classList.toggle('hidden');
+        hideOptions = !hideOptions;
     };
 
     onMount(() => {
-        let container = document.getElementById('serviceSelect');
-        let selectButton = container?.querySelector('.select-button');
-        let dropDown = container?.querySelector('.select-options');
-        selectButton?.addEventListener('click', () => { toggleDropdown(); });
-
-        const options = dropDown?.querySelectorAll('li.option');
-        const selectedValue = selectButton?.querySelector('.selected-value');
-        options?.forEach(option => {
-            option.addEventListener('click', () => {
-                // console.log('selectedId', option.dataset.id);
-                handleOptionSelect(option.dataset.id);
-                toggleDropdown();
-            });
-        });
-
         let serviceId = new URLSearchParams(location.search).get("id");
-        if (!serviceId) { return; }
-
-        handleOptionSelect(serviceId);
-        servicesData.activeService = findServiceById(serviceId);
+        selectOption(parseInt(serviceId || '0'));
     });
 </script>
 
@@ -72,37 +34,49 @@
     <div class="fieldset">
         <h4 class="label">Service</h4>
         <p class="help">What would you like to have?</p>
-    
+
         <div class="select" id="serviceSelect">
-            <button class="select-button" type="button">
-                <span class="selected-value"></span>
+            <!-- svelte-ignore a11y_consider_explicit_label -->
+            <button class="select-button" type="button"
+                onclick={() => { hideOptions = !hideOptions }}
+            >
+                <span class="selected-value">{activeServiceName}</span>
                 <span class="arrow"></span>
             </button>
-            <ul class="select-options hidden">
+            
+            <div
+                onblur={() => { hideOptions = true }}
+                class={[
+                    "select-options",
+                    { hidden: hideOptions === true }
+                ]}
+            >
                 {#each allServices as category}
-                    <li class="category">{category.name}</li>
+                    <div class="category">{category.name}</div>
                     {#each category.services as item}
-                        <li class="option" data-id={item.id} data-category={category.name}>{item.name}</li>
+                        <div class="option"
+                            data-id={item.id}
+                            data-category={category.name}
+                            onclick={() => { selectOption(item.id) }}
+                        >{item.name}</div>
                     {/each}
                 {/each}
-            </ul>
+            </div>
         </div>
     </div>
 
-    {#if servicesData.activeService.description}
-        <p class="help">{servicesData.activeService.description}</p>
-    {/if}
-
-    {#if !!servicesData.activeService.price === true}
-    <div class="price">
-        <span>About {servicesData.activeService.duration} minutes</span>
-        <div>
-            {#if servicesData.activeService.range === true}
-                <span class="label">starts from</span>
-            {/if}
-            <span class="value">${servicesData.activeService.price}</span>
+    {#if activeService}
+        <p class="help">{activeService.description}</p>
+        
+        <div class="price">
+            <span>About {activeService.duration} minutes</span>
+            <div>
+                {#if activeService.range === true}
+                    <span class="label">starts from</span>
+                {/if}
+                <span class="value">${activeService.price}</span>
+            </div>
         </div>
-    </div>
     {/if}
 </div>
 
@@ -123,7 +97,6 @@
         color: var(--color-grey-dark-03-rgb);
         font-size: var(--fs-md);
         font-weight: 500;
-        /* margin-bottom: 0.25rem; */
         margin-left: 0.25rem;
     }
     .help {
@@ -160,12 +133,12 @@
         border-top: 0.5rem solid var(--color-grey-dark-03-rgb);
         transition: transform ease-in-out 300ms;
     }
-    ul {
+    .select-options {
         position: absolute;
         top: 100%;
         left: 0;
         width: 100%;
-        border: 1px solid var(--color-accent);
+        border: 1px solid var(--color-border-lite);
         border-radius: 0.5rem;
         background-color: white;
         list-style: none;
@@ -176,18 +149,18 @@
         overflow-y: auto;
         z-index: 9999;
     }
-    ul::-webkit-scrollbar {
-        width: 0.5rem;
+    .select-options::-webkit-scrollbar {
+        width: 0.75rem;
     }
-    ul::-webkit-scrollbar-track {
-        background-color: #f1f1f1;
+    .select-options::-webkit-scrollbar-track {
+        background-color: var(--color-border-lite);
         border-radius: 0.5rem;
     }
-    ul::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-dark-03-rgb);
+    .select-options::-webkit-scrollbar-thumb {
+        background-color: var(--color-grey-dark-03-rgb-lite);
         border-radius: 0.5rem;
     }
-    li {
+    .select-options > * {
         padding: 0.5rem 1.5rem;
         cursor: pointer;
         color: var(--color-grey-dark-03-rgb);
@@ -196,33 +169,23 @@
         font-weight: 300;
         transition: all 150ms ease-in-out;
         border-radius: 0.25rem;
+        display: block;
     }
-    li.category {
+    .select-options > .category {
         font-weight: 600;
         padding: 0.5rem 0;
         border-radius: 0;
         border-bottom: 2px solid var(--color-accent);
     }
-    li.category:not(:first-of-type) {
+    .select-options > .category:not(:first-of-type) {
         margin-top: 1rem;
     }
-    /* li:not(.reminder) {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    } */
-    /* li.selected {
-        background-color: var(--color-accent);
-        font-weight: 600;
-    } */
-    li:hover:not(.category),
-    li:focus {
+    .select-options > *:hover:not(.category),
+    .select-options > *:focus {
         background-color: #f2f2f2;
-        font-weight: 400;
     }
 
     .price {
-        /* border: 1px solid red; */
         display: flex;
         flex-direction: row;
         justify-content: space-between;

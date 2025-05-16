@@ -28,19 +28,14 @@
         });
 
         let activeStep = bookingForm?.querySelector(`[data-step="${step.toString()}"]`);
-        // console.log('activeStep', activeStep);
         if (activeStep) {
             activeStep.classList.add('active');
         }
     });
 
-    $effect(() => {
-        console.log('bookingData', bookingData.data);
-        console.log(`submitted = ${submitted}; success = ${success}`);
-    })
-
-    const goHome = () => {
-        window.location = '/';
+    const goBook = () => {
+        bookingData.reset();
+        window.location = '/book';
     };
 
     const navNext = () => {
@@ -63,26 +58,12 @@
         step--;
     };
 
-    const goBook = () => {
-        window.location = '/book';
-    };
-
     const submitData = async () => {
-        /* let submitResponse = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify(bookingData.data)
-        });
-        let jsonResponse = await submitResponse.json();
-        console.log('jsonResponse', jsonResponse); */
-
         let jsonResponse = {
             success: true
         };
         submitted = true;
         success = jsonResponse.success;
-
-        // let bookingForm = document.getElementById('bookingForm');
-        // let confirmForm = document.getElementById('confirmForm');
     };
 
     const tryAgain = () => {
@@ -119,8 +100,6 @@
 
         return true;
     };
-
-    onMount(() => bookingData.reset());
 </script>
 
 <section class="wrapper">
@@ -196,7 +175,7 @@
 
         <div class="actions">
             {#if success === true}
-                <button type="button" onclick={goHome}>Return to Home page</button>
+                <button type="button" onclick={() => { window.location = '/'; }}>Return to Home page</button>
                 <button type="button" class="cta" onclick={goBook}>Book another appointment</button>
             {:else}
                 <button type="button" class="cta" onclick={tryAgain}>Try again</button>

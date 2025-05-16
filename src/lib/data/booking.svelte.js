@@ -12,6 +12,17 @@ export const parseDate = (str) => {
     return new Date(str.slice(0, 4), parseInt(str.slice(4, 6)) - 1, str.slice(6));
 };
 
+/* export const parseTime = (str) => {
+    let now = new Date();
+    let dt = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        parseInt(str.slice(0, 2),
+        parseInt(str.slice(2)))
+    );
+}; */
+
 export const unparseTime = (dt) => {
     if (!dt) { return ''; }
     

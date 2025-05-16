@@ -80,8 +80,15 @@ export const createServicesData = () => {
              * @type {never[]}
              */
             let output = allServices.reduce((a, b) => {
+                let mappedServices = b.services.map(s => {
+                    return {
+                        ...s,
+                        category: { id: b.id, name: b.name }
+                    }
+                });
+
                 // @ts-ignore
-                a = a.concat(b.services);
+                a = a.concat(mappedServices);
                 return a;
             }, []);
             return output;
@@ -95,7 +102,6 @@ export const createServicesData = () => {
 
         // @ts-ignore
         getServiceById (id) {
-            // console.log('getServiceById', id);
             // @ts-ignore
             return this.services.find(s => s.id === id);
         },
