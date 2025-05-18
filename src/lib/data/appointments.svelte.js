@@ -28,18 +28,18 @@ export const createAppointmentsData = () =>  {
     return {
         // get all () { return appointments; },
         // @ts-ignore
-        async getByDate (dt) {
-            if (Object.prototype.toString.call(dt) === '[object Object]') {
-                dt = `${dt.getFullYear()}${(dt.getMonth()+1).toString().padStart(2, '0')}${dt.getDate().toString().padStart(2, '0')}`
-            }
+        // async getByDate (dt) {
+        //     if (Object.prototype.toString.call(dt) === '[object Object]') {
+        //         dt = `${dt.getFullYear()}${(dt.getMonth()+1).toString().padStart(2, '0')}${dt.getDate().toString().padStart(2, '0')}`
+        //     }
             
-            let apiResponse = await fetch(`${API_URL}?dt=${dt}`);
-            let appointments = await apiResponse.json();
-            console.log('appointmentData >> appointments', appointments);
+        //     let apiResponse = await fetch(`${API_URL}?dt=${dt}`);
+        //     let appointments = await apiResponse.json();
+        //     console.log('appointmentData >> appointments', appointments);
 
-            return appointments;
-            // appointments = jsonResponse;
-            // return appointments.filter(a => a.dt === dt);
-        }
+        //     return appointments;
+        //     // appointments = jsonResponse;
+        //     // return appointments.filter(a => a.dt === dt);
+        // }
     }
 };

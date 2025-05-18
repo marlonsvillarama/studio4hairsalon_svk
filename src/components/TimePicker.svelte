@@ -2,6 +2,7 @@
     // @ts-nocheck
 
     import { onMount } from 'svelte';
+    import { API_URL } from '$lib/data/api.svelte';
     import { createAppointmentsData } from '$lib/data/appointments.svelte';
     import { createBookingData, parseDate, unparseDate, unparseTime } from '$lib/data/booking.svelte';
     import { createServicesData } from '$lib/data/services.svelte';
@@ -11,8 +12,10 @@
     const bookingData = createBookingData();
     const servicesData = createServicesData();
     const allServices = servicesData.services;
+    let asyncPending = $state(false);
+    let availableTimes = $state([]);
 
-    let allStartTimes = [
+    const allStartTimes = [
         { dt: '0930', text: '9:30 AM' },
         { dt: '1000', text: '10:00 AM' },
         { dt: '1030', text: '10:30 AM' },
@@ -29,67 +32,102 @@
         { dt: '1600', text: '4:00 PM' },
         { dt: '1630', text: '4:30 PM' }
     ];
-    
-    let availableTimes = $derived.by(() => {
-        // console.log('TimePicker > bookingData.date', bookingData.date);
-        let dt = unparseDate(bookingData.date);
-        // console.log('TimePicker > dt', dt);
+    const closingTime = "1700";
 
-        let responseJSON = appointmentsData.getByDate(dt);
-        let output = getAvailableTimes({ data: responseJSON });
-        console.log('$derived.by ==> output', output);
+    const bookServiceSlots = (options) => {
+        let { id, index } = options;
+        let output = [];
+        let svc = servicesData.getServiceById(id);
+        let slots = svc.duration / 30;
 
+        for (let j = 0; j < slots && (index + j) < allStartTimes.length; j++) {
+            output.push(allStartTimes[index + j].dt);
+        }
+
+        // bookedTimes = bookedTimes.concat(output);
         return output;
-    });
-
-    const getAvailableTimes = (options) => {
-        let { data } = options;
+    };
+    
+    const getAvailableTimes = async (options) => {
+        // let { date, service } = options;
+        let date = bookingData.date;
+        let service = bookingData.service;
         let bookedTimes = [];
         let now = new Date();
 
-        let sortedData = data.sort((a, b) => a.time - b.time);
-        let selectedService = servicesData.getServiceById(parseInt(bookingData.service.toString()));
+        asyncPending = true;
+        let apiResponse = await fetch(`${API_URL}?dt=${unparseDate(date)}`);
+        let appointments = await apiResponse.json();
+
+        let sortedData = appointments.sort((a, b) => a.time - b.time);
+        let selectedService = servicesData.getServiceById(parseInt(service.toString()));
         let selectedSlots = selectedService.duration / 30;
         let serviceStartTimes = [];
 
         allTimesLoop: for (let i = 0, count = allStartTimes.length; i < count; i++) {
             let startTime = allStartTimes[i].dt;
             let serviceAtStartTime = sortedData.find(d => d.time === startTime);
-            let serviceSlots = 0;
-            let svc = '';
 
             if (serviceAtStartTime) {
-                svc = servicesData.getServiceById(serviceAtStartTime.sid);
+                let serviceSlots = bookServiceSlots({ id: serviceAtStartTime.sid, index: i });
+                bookedTimes = bookedTimes.concat(serviceSlots);
+                /* svc = servicesData.getServiceById(serviceAtStartTime.sid);
                 serviceSlots = svc.duration / 30;
-                // console.log(`** serviceAtStartTime ** serviceSlots = ${serviceSlots}; svc ==>`, svc);
 
                 for (let j = 0; j < serviceSlots && (i + j) < count; j++) {
-                    // console.log(`j = ${j}; [i + j] = ${i + j}; dt = ${allStartTimes[i + j].dt}`);
                     bookedTimes.push(allStartTimes[i + j].dt);
-                }
+                } */
 
-                i += (serviceSlots - 1);
-                continue;
+                i += (serviceSlots.length - 1);
+                continue allTimesLoop;
+            }
+
+            if ((i + selectedSlots - 1) >= count) {
+                remainingSlotsLoop: for (let j = i; j < count; j++) {
+                    bookedTimes.push(allStartTimes[j].dt);
+                }
+                i += (selectedSlots - 1);
+                
+                continue allTimesLoop;
             }
 
             let hasService = false;
             let slotIndex = i;
             selectedSlotsLoop: for (let j = 0; j < selectedSlots; j++) {
+                console.log(`selectedSlots=${selectedSlots}; slotIndex=${slotIndex}; i=${i}; j=${j}`);
                 let slotTime = allStartTimes[i + j]?.dt;
                 let serviceAtSlotTime = sortedData.find(d => d.time === slotTime);
                 // console.log(`** selectedSlotsLoop ** i = ${i}; j = ${j}; slotTime = ${slotTime}; serviceAtStartTime ==>`, serviceAtSlotTime);
 
-                if (serviceAtSlotTime) {
-                    svc = servicesData.getServiceById(serviceAtSlotTime.service);
-                    serviceSlots = svc.duration / 30;
-                    slotIndex = j;
-                    hasService = true;
-                    break selectedSlotsLoop;
+                if (!serviceAtSlotTime) {
+                    // slotIndex++;
+                    continue selectedSlotsLoop;
+                    // svc = servicesData.getServiceById(serviceAtSlotTime.sid);
+                    // serviceSlots = svc.duration / 30;
+                    // slotIndex = j;
+                    // hasService = true;
+                    // break selectedSlotsLoop;
                 }
+
+                for (let k = slotIndex; k < slotIndex + j; k++) {
+                    console.log(`slotIndex=${slotIndex}; k=${k}; `)
+                    bookedTimes.push(allStartTimes[k].dt);
+                }
+                // i += j;
+                console.log(`  1: i=${i}; j=${j}; bookedTimes==>>`, bookedTimes);
+
+                let serviceSlots = bookServiceSlots({ id: serviceAtSlotTime.sid, index: i + j });
+                // serviceSlots = serviceAtSlotTime.duration / 30;
+                bookedTimes = bookedTimes.concat(serviceSlots);
+                i += (j + serviceSlots.length - 1);
+                console.log(`  2: i=${i}; j=${j}; bookedTimes==>>`, bookedTimes);
+
+                continue allTimesLoop;
             }
+            console.log('AFTER selectedSlotsLoop: bookedTimes', bookedTimes);
             // console.log(`hasService = ${hasService}; slotIndex = ${slotIndex}`);
 
-            if (hasService === true) {
+            /* if (hasService === true) {
                 for (let j = 0; j < slotIndex; j++) {
                     bookedTimes.push(allStartTimes[i + j].dt);
                 }
@@ -101,12 +139,14 @@
                 // console.log(`** selectedSlotsLoop ** i = ${i}; bookedTimes ===>>`, bookedTimes);
                 i += (slotIndex + selectedSlots - 1);
                 continue;
-            }
+            } */
 
             defaultLoop: for (let j = 1; j < selectedSlots; j++) {
-                if (i + selectedSlots >= count) {
-                    bookedTimes.push(allStartTimes[i].dt);
-                    break defaultLoop;
+                console.log(`defaultLoop: i=${i}; j=${j}; count=${count}`);
+                if (i + j < count) {
+                    // bookedTimes.push(allStartTimes[i + j].dt);
+                    bookedTimes.push(allStartTimes[i + j].dt);
+                    // break defaultLoop;
                 }
 
                 bookedTimes.push(allStartTimes[i + j].dt);
@@ -115,29 +155,48 @@
             i += (selectedSlots - 1);
         }
 
-        let output = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
-        console.log('getAvailableTimes >>> output', output);
-        return output;
+        bookedTimes =  [ ...new Set(bookedTimes) ];
+        console.log('bookedTimes', bookedTimes);
+
+        availableTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
+        console.log('getAvailableTimes >>> output', availableTimes);
+        // availableTimes = output;
+        asyncPending = false;
     };
+
+    $effect(() => {
+        getAvailableTimes();
+        /* getAvailableTimes({
+            dt: bookingData.date,
+            service: bookingData.service
+        }); */
+        // $inspect('asyncPending', asyncPending);
+    });
     
     const selectTime = (e) => {
         let button = e.target;
         bookingData.time = button.dataset.time;
     };
 
-    $effect(() => {
-        $inspect('availableTimes', availableTimes);
-    });
+    // $effect(() => {
+    //     $inspect('availableTimes', availableTimes);
+    // });
 </script>
 
 <div class="time-picker">
     <div class={[
-        "loader-wrapper hidden"
+        "loader-wrapper",
+        { hidden: asyncPending === false }
     ]} id="time-loader">
         <div class="loader"></div>
         <h3>Finding available times...</h3>
     </div>
-    <div class="fieldset" id="time-field">
+    <div id="time-field"
+        class={[
+            "fieldset",
+            { hidden: asyncPending === true }
+        ]}
+    >
         <h4 class="label">Time</h4>
         <p class="help">What time works best for you?</p>
 

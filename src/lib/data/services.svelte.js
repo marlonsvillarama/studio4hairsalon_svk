@@ -102,8 +102,11 @@ export const createServicesData = () => {
 
         // @ts-ignore
         getServiceById (id) {
+            if (!id) { return null; }
             // @ts-ignore
-            return this.services.find(s => s.id === id);
+            let svc = this.services.find(s => s.id === id);
+            console.log(`getServiceById id = ${id}`, svc);
+            return svc;
         },
 
         // @ts-ignore
