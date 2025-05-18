@@ -12,7 +12,7 @@
     const bookingData = createBookingData();
     const servicesData = createServicesData();
     const allServices = servicesData.services;
-    let asyncPending = $state(false);
+    let asyncWorking = $state(false);
     let availableTimes = $state([]);
 
     const allStartTimes = [
@@ -32,7 +32,6 @@
         { dt: '1600', text: '4:00 PM' },
         { dt: '1630', text: '4:30 PM' }
     ];
-    const closingTime = "1700";
 
     const bookServiceSlots = (options) => {
         let { id, index } = options;
@@ -44,18 +43,16 @@
             output.push(allStartTimes[index + j].dt);
         }
 
-        // bookedTimes = bookedTimes.concat(output);
         return output;
     };
     
     const getAvailableTimes = async (options) => {
-        // let { date, service } = options;
         let date = bookingData.date;
         let service = bookingData.service;
         let bookedTimes = [];
         let now = new Date();
 
-        asyncPending = true;
+        asyncWorking = true;
         let apiResponse = await fetch(`${API_URL}?dt=${unparseDate(date)}`);
         let appointments = await apiResponse.json();
 
@@ -71,12 +68,6 @@
             if (serviceAtStartTime) {
                 let serviceSlots = bookServiceSlots({ id: serviceAtStartTime.sid, index: i });
                 bookedTimes = bookedTimes.concat(serviceSlots);
-                /* svc = servicesData.getServiceById(serviceAtStartTime.sid);
-                serviceSlots = svc.duration / 30;
-
-                for (let j = 0; j < serviceSlots && (i + j) < count; j++) {
-                    bookedTimes.push(allStartTimes[i + j].dt);
-                } */
 
                 i += (serviceSlots.length - 1);
                 continue allTimesLoop;
@@ -94,99 +85,55 @@
             let hasService = false;
             let slotIndex = i;
             selectedSlotsLoop: for (let j = 0; j < selectedSlots; j++) {
-                console.log(`selectedSlots=${selectedSlots}; slotIndex=${slotIndex}; i=${i}; j=${j}`);
                 let slotTime = allStartTimes[i + j]?.dt;
                 let serviceAtSlotTime = sortedData.find(d => d.time === slotTime);
-                // console.log(`** selectedSlotsLoop ** i = ${i}; j = ${j}; slotTime = ${slotTime}; serviceAtStartTime ==>`, serviceAtSlotTime);
 
                 if (!serviceAtSlotTime) {
-                    // slotIndex++;
                     continue selectedSlotsLoop;
-                    // svc = servicesData.getServiceById(serviceAtSlotTime.sid);
-                    // serviceSlots = svc.duration / 30;
-                    // slotIndex = j;
-                    // hasService = true;
-                    // break selectedSlotsLoop;
                 }
 
                 for (let k = slotIndex; k < slotIndex + j; k++) {
-                    console.log(`slotIndex=${slotIndex}; k=${k}; `)
                     bookedTimes.push(allStartTimes[k].dt);
                 }
-                // i += j;
-                console.log(`  1: i=${i}; j=${j}; bookedTimes==>>`, bookedTimes);
 
                 let serviceSlots = bookServiceSlots({ id: serviceAtSlotTime.sid, index: i + j });
-                // serviceSlots = serviceAtSlotTime.duration / 30;
                 bookedTimes = bookedTimes.concat(serviceSlots);
-                i += (j + serviceSlots.length - 1);
-                console.log(`  2: i=${i}; j=${j}; bookedTimes==>>`, bookedTimes);
 
+                i += (j + serviceSlots.length - 1);
                 continue allTimesLoop;
             }
-            console.log('AFTER selectedSlotsLoop: bookedTimes', bookedTimes);
-            // console.log(`hasService = ${hasService}; slotIndex = ${slotIndex}`);
-
-            /* if (hasService === true) {
-                for (let j = 0; j < slotIndex; j++) {
-                    bookedTimes.push(allStartTimes[i + j].dt);
-                }
-
-                for (let j = 0; j <= serviceSlots; j++) {
-                    bookedTimes.push(allStartTimes[i + slotIndex + j].dt);
-                }
-                
-                // console.log(`** selectedSlotsLoop ** i = ${i}; bookedTimes ===>>`, bookedTimes);
-                i += (slotIndex + selectedSlots - 1);
-                continue;
-            } */
 
             defaultLoop: for (let j = 1; j < selectedSlots; j++) {
-                console.log(`defaultLoop: i=${i}; j=${j}; count=${count}`);
                 if (i + j < count) {
-                    // bookedTimes.push(allStartTimes[i + j].dt);
                     bookedTimes.push(allStartTimes[i + j].dt);
-                    // break defaultLoop;
                 }
 
                 bookedTimes.push(allStartTimes[i + j].dt);
             }
-            // console.log(`** defaultLoop ** i = ${i}; startTime = ${startTime}; bookedTimes ===>>`, bookedTimes);
+
             i += (selectedSlots - 1);
         }
 
         bookedTimes =  [ ...new Set(bookedTimes) ];
-        console.log('bookedTimes', bookedTimes);
-
         availableTimes = allStartTimes.filter(t => !bookedTimes.includes(t.dt));
-        console.log('getAvailableTimes >>> output', availableTimes);
-        // availableTimes = output;
-        asyncPending = false;
+        asyncWorking = false;
+        console.log('asyncWorking', asyncWorking);
     };
 
     $effect(() => {
         getAvailableTimes();
-        /* getAvailableTimes({
-            dt: bookingData.date,
-            service: bookingData.service
-        }); */
-        // $inspect('asyncPending', asyncPending);
     });
     
     const selectTime = (e) => {
         let button = e.target;
         bookingData.time = button.dataset.time;
     };
-
-    // $effect(() => {
-    //     $inspect('availableTimes', availableTimes);
-    // });
 </script>
 
 <div class="time-picker">
     <div class={[
         "loader-wrapper",
-        { hidden: asyncPending === false }
+        { hidden: asyncWorking === false }
     ]} id="time-loader">
         <div class="loader"></div>
         <h3>Finding available times...</h3>
@@ -194,7 +141,7 @@
     <div id="time-field"
         class={[
             "fieldset",
-            { hidden: asyncPending === true }
+            { hidden: asyncWorking === true || availableTimes.length <= 0 }
         ]}
     >
         <h4 class="label">Time</h4>
@@ -212,6 +159,16 @@
                 >{time.text}</button>
             {/each}
         </div>
+    </div>
+    
+    <div
+        class={[
+            "fieldset",
+            { hidden: asyncWorking === true || availableTimes.length > 0 }
+        ]}
+    >
+        <h4 class="label">No available time slots</h4>
+        <p class="help">Please choose another date to book.</p>
     </div>
 </div>
 
@@ -258,77 +215,6 @@
     .selected {
         background-color: var(--color-bg-btn) !important;
     }
-
-    /* .select {
-        position: relative;
-        display: inline-block;
-        width: 100%;
-    }
-    .select-button {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background-color: white;
-        border: 1px solid var(--color-border-lite);
-        border-radius: 0.5rem;
-        cursor: pointer;
-        font-size: var(--fs-sm);
-        padding: 0.5rem 1.25rem;
-        width: 100%;
-    }
-    .selected-value {
-        color: var(--color-grey-dark-03-rgb);
-    } */
-    /* img {
-        width: 1.5rem;
-        height: 1.5rem;
-        /!* border-left: 0.5rem solid transparent;
-        border-right: 0.5rem solid transparent;
-        border-top: 0.5rem solid var(--color-grey-dark-03-rgb);
-        transition: transform ease-in-out 300ms; *!/
-    } */
-    /* ul {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 10rem;
-        border: 1px solid var(--color-accent);
-        border-radius: 0.5rem;
-        background-color: white;
-        list-style: none;
-        padding: 0.75rem 1.25rem;
-        margin: 0.5rem 0 0;
-        box-shadow: var(--button-shadow);
-        max-height: 15rem;
-        overflow-y: auto;
-        z-index: 9999;
-    }
-    ul::-webkit-scrollbar {
-        width: 0.5rem;
-    }
-    ul::-webkit-scrollbar-track {
-        background-color: #f1f1f1;
-        border-radius: 0.5rem;
-    }
-    ul::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-dark-03-rgb);
-        border-radius: 0.5rem;
-    }
-    li {
-        padding: 0.5rem 1rem;
-        cursor: pointer;
-        color: var(--color-grey-dark-03-rgb);
-        font-family: var(--font-default);
-        font-size: var(--fs-sm);
-        font-weight: 300;
-        transition: all 150ms ease-in-out;
-        border-radius: 0.25rem;
-    }
-    li:hover:not(.category),
-    li:focus {
-        background-color: #f2f2f2;
-        font-weight: 400;
-    } */
 
     /* HTML: <div class="loader"></div> */
     .loader-wrapper {

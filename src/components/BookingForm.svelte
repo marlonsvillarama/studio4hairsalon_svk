@@ -59,11 +59,20 @@
     };
 
     const submitData = async () => {
-        let jsonResponse = {
-            success: true
-        };
+        console.log('submitData payload', bookingData.data);
+
+        let jsonResponse = await fetch(API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: bookingData.data
+        });
+        jsonResponse = jsonResponse.json();
+        console.log(`submitData jsonResponse`, jsonResponse);
+
         submitted = true;
-        success = jsonResponse.success;
+        success = jsonResponse.oks;
     };
 
     const tryAgain = () => {
