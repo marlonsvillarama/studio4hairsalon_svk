@@ -62,17 +62,20 @@
         console.log('submitData payload', bookingData.data);
 
         let jsonResponse = await fetch(API_URL, {
-            method: 'PUT',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: bookingData.data
+            body: JSON.stringify({
+                ...bookingData.data,
+                id: (new Date()).getTime().toString()
+            })
         });
-        jsonResponse = jsonResponse.json();
+        jsonResponse = await jsonResponse.json();
         console.log(`submitData jsonResponse`, jsonResponse);
 
         submitted = true;
-        success = jsonResponse.oks;
+        success = jsonResponse.ok;
     };
 
     const tryAgain = () => {
