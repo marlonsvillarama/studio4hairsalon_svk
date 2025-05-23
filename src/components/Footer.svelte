@@ -35,13 +35,18 @@
 <style>
     footer {
         background-color: var(--color-bg-header);
-        padding: 4rem 0 6rem;
+        padding: 2rem 0 4rem;
         font-size: var(--fs-sm);
         font-weight: 200;
         color: white;
     }
+    @media (min-width: 64rem) {
+        footer {
+            padding: 4rem 0 6rem;
+        }
+    }
     footer > .content {
-        border: 0px solid red;
+        border: 1px solid red;
     }
     @media (min-width: 64rem) {
         footer > .content {

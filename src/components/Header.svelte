@@ -1,7 +1,7 @@
 <script></script>
 
 <header>
-    <div class="menu full wrapper">
+    <div class="menu full">
         <nav>
             <a href="/services">Services</a>
             <a href="/gallery">Gallery</a>
@@ -13,13 +13,12 @@
             <a href="/book" class="cta">Book Now</a>
         </div>
     </div>
-    <div class="menu small wrapper">
+    <div class="menu small">
         <div class="logo">Studio 4</div>
-        <nav>
-            <a href="/services">Services</a>
-            <a href="/gallery">Gallery</a>
-            <a href="/reviews">Reviews</a>
-        </nav>
+        <div>
+            <!-- <a href="/contact" class="contact">Contact Us</a> -->
+            <a href="/book" class="cta">Book Now</a>
+        </div>
     </div>
 </header>
 
@@ -31,6 +30,7 @@
     }
     .menu {
         margin: 0 auto;
+        width: 85%;
         /* position: fixed; */
         /* top: 1rem; */
         /* left: 0; */
@@ -48,6 +48,7 @@
         font-size: var(--fs-sm);
     }
     .menu.small {
+        width: 92%;
         display: flex;
         flex-direction: row;
         justify-content: space-between;
@@ -89,8 +90,8 @@
         transition: all 100ms ease-in;
     }
     /* li a:hover, */
-    nav a:hover,
-    .contact:hover {
+    /* .contact:hover */
+    nav a:hover {
         color: white;
         border-bottom: 2px solid var(--color-accent);
         transform: translateY(-2px);
@@ -99,17 +100,23 @@
         text-align: end;
     }
     .menu .cta {
-        padding: 0.75rem 2.5rem;
+        padding: 0.5rem 1.75rem;
         background-color: rgba(239, 191, 4, 0.75);
         border-radius: 0.25rem;
         color: white;
-        font-size: var(--fs-md);
-        margin-left: 2rem;
+        font-size: var(--fs-xs);
         transition: all 100ms ease-in-out;
     }
     .menu .cta:hover {
         background-color: rgba(239, 191, 4, 0.8);
         /* transform: translateY(-1px); */
         box-shadow: rgba(255, 255, 255, 0.5) 0px 0 4px;
+    }
+    @media (min-width: 64rem) {
+        .menu .cta {
+            font-size: var(--fs-sm);
+            padding: 0.75rem 2.5rem;
+            margin-left: 2rem;
+        }
     }
 </style>

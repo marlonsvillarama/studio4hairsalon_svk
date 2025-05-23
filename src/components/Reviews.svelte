@@ -45,7 +45,8 @@
         border: 1px solid red;
     } */
     .review {
-        width: 70%;
+        /* border: 1px solid red; */
+        width: 90%;
         margin: 0 auto;
         text-align: center;
         font-weight: 200;
@@ -62,12 +63,18 @@
         opacity: 0;
     } */
     .text{
-        font-size: var(--fs-xl);
+        font-size: var(--fs-lg);
         font-style: italic;
         font-weight: 100;
         letter-spacing: 1px;
-        line-height: 2.75rem;
+        line-height: 2rem;
         /* margin-bottom: 2rem; */
+    }
+    @media (min-width: 64rem) {
+        .text {
+            /* font-size: var(--fs-xl); */
+            line-height: 2.5rem;
+        }
     }
     .text::before,
     .text::after {
@@ -82,7 +89,12 @@
     }
     .author {
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-lg);
+        font-size: var(--fs-sm);
         font-weight: 400;
+    }
+    @media (min-width: 64rem) {
+        .author {
+            font-size: var(--fs-md);
+        }
     }
 </style>

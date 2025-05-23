@@ -1,19 +1,19 @@
 <script>
-    import Full from '$lib/images/john.jpg';
-    import InAction from '$lib/images/in-action.jpg';
+    import Full from '$lib/images/john.jpg?enhanced';
+    // import InAction from '$lib/images/in-action.jpg?enhanced';
 </script>
 
 <section class="wrapper">
+    <div class="pics">
+        <enhanced:img src={Full} alt="John Fernandez">
+        <!-- <enhanced:img src={InAction} alt="John Fernandez in action"> -->
+    </div>
     <div class="profile">
         <p>Led by <span class="emp accent">John Fernandez</span>, a seasoned professional with over 20 years of international experience, we bring world-class expertise and creativity to every client.</p>
         <p>John’s journey spans the vibrant salons of Dubai, the dynamic multi-franchise networks of the Philippines, and the innovative hair industry of New Zealand.</p>
         <p>This extensive background combines diverse techniques, global trends, and a passion for excellence to ensure you receive a look tailored specifically to your unique style.</p>
         
         <a href="/book" class="btn cta">BOOK NOW</a>
-    </div>
-    <div class="pics">
-        <img src={Full} alt="John Fernandez">
-        <img src={InAction} alt="John Fernandez in action">
     </div>
 </section>
 
@@ -32,16 +32,18 @@
     }
     @media (min-width: 64rem) {
         section {
+            /* display: flex;
+            flex-direction: row; */
             display: grid;
-            grid-template-columns: calc(30% - 4rem) 70%;
-            align-items: flex-start;
+            grid-template-columns: calc(50% - 4rem) 50%;
+            align-items: center;
             justify-content: center;
         }
     }
     section > * {
         border: 0px solid red;
     }
-    .pics {
+    /* .pics {
         display: flex;
         flex-direction: column;
         gap: 2rem;
@@ -50,10 +52,23 @@
         .pics {
             flex-direction: row;
         }
-    }
-    .pics img {
-        width: 100%;
+    } */
+    .pics {
+        width: 80%;
+        /* max-width: 80%; */
+        margin: 0 auto;
         box-shadow: var(--box-shadow);
+    }
+    img {
+        width: 100%;
+        height: auto;
+    }
+    @media (min-width: 40rem) {
+        .pics {
+            width: 80%;
+            /* max-width: 80%; */
+            margin: 0 auto;
+        }
     }
     /* .profile {
         border: 1px solid red;
@@ -61,6 +76,7 @@
     .profile p {
         line-height: 2rem;
         margin-bottom: 2.5rem;
+        font-size: var(--fs-sm);
         font-weight: 200;
         letter-spacing: 0.5px;
     }

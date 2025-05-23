@@ -12,7 +12,7 @@
 
 <style>
     .container {
-        border: 0px solid red;
+        /* border: 1px solid green; */
         /* display: flex;
         flex-direction: column;
         gap: 0.25rem; */
@@ -28,9 +28,15 @@
         width: 100%;
         /* height: 100%; */
         border: 0;
-        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
         opacity: 0.9;
         transition: all 100ms ease-in-out;
+    }
+    @media (min-width: 40rem) {
+        img {
+            margin-bottom: 0.75rem;
+        }
     }
     .text {
         color: var(--color-grey-dark-03-rgb);
@@ -38,18 +44,28 @@
     .text h3 {
         /* color: var(--color-grey-dark-03); */
         font-family: var(--font-default);
-        font-size: var(--fs-xl);
+        font-size: var(--fs-lg);
         /* font-style: italic; */
         font-weight: 500;
         letter-spacing: 0.25px;
         text-align: center;
         margin-bottom: 0.5rem;
     }
+    @media (min-width: 40rem) {
+        .text h3 {
+            font-size: var(--fs-lg);
+        }
+    }
     .text p {
         color: var(--color-grey-dark-03-rgb);
         font-family: var(--font-default);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         font-weight: 200;
-        padding: 0 1.5rem 1.5rem;
+        padding: 0 1.5rem;
+    }
+    @media (min-width: 40rem) {
+        .text p {
+            font-size: var(--fs-xs);
+        }
     }
 </style>

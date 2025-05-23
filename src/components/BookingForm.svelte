@@ -68,7 +68,8 @@
             },
             body: JSON.stringify({
                 ...bookingData.data,
-                id: (new Date()).getTime().toString()
+                id: (new Date()).getTime().toString(),
+                service: servicesData.getServiceById(bookingData.service)
             })
         });
         jsonResponse = await jsonResponse.json();
