@@ -72,7 +72,7 @@
     }
     @media (min-width: 64rem) {
         .text {
-            /* font-size: var(--fs-xl); */
+            font-size: var(--fs-xl);
             line-height: 2.5rem;
         }
     }
