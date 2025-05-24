@@ -7,10 +7,17 @@
 </script>
 
 <div class="page">
-    <PageHeader title="Our Services" text="We offer the following services." />
+    <PageHeader title="Our Services" text="" />
     {#each services.list as service, index}
         <ServiceRow data={service} flip={index % 2 > 0} />
     {/each}
 </div>
 
-<style></style>
+<style>
+    /* .page {}
+    @media (min-width: 64rem) {
+        .page {
+
+        }
+    } */
+</style>
