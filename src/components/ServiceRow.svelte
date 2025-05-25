@@ -41,11 +41,6 @@
         width: 100%;
         border-radius: 0.5rem;
     }
-    /* .list {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-    } */
     h3 {
         color: var(--color-grey-dark-03-rgb);
         font-family: var(--font-serif);
@@ -57,37 +52,59 @@
         /* display: inline-block; */
      }
     .item {
-        padding: 1rem 1.5rem;
+        padding: 0 0 1rem;
         /* margin: 0 2rem; */
         /* cursor: pointer; */
-        border: 0px solid red;
+        /* border: 1px solid red; */
         transition: all 100ms ease-in-out;
         display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        gap: 4rem;
-        font-size: var(--fs-sm);
+        flex-direction: column;
+        /* justify-content: space-between; */
+        /* align-items: center; */
+        gap: 0.5rem;
+        font-size: var(--fs-xs);
         font-weight: 200;
     }
-    @media (min-width: 64rem) {
+    @media (min-width: 30rem) {
         .item {
             flex-direction: row;
             justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+    }
+    @media (min-width: 40rem) {
+        .item {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
             gap: 2rem;
+        }
+    }
+    @media (min-width: 64rem) {
+        .item {
+            padding: 1rem 1.5rem;
         }
     }
     .item:not(:last-child) {
         border-bottom: 1px dashed var(--color-accent);
+        margin-bottom: 1rem;
     }
 
     .item > *:first-child {
         /* border: 1px solid red; */
         flex-grow: 1;
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        /* gap: 0.25rem; */
+    }
+    @media (min-width: 30rem) {
+        .item > *:first-child {
+            flex-direction: row;
+            justify-content: space-between;
+        }
     }
     @media (min-width: 40rem) {
         .item > *:first-child {
@@ -103,11 +120,12 @@
 
     .item a {
         display: inline-block;
-        padding: 0.5rem 1.5rem;
+        padding: 0.25rem 1.5rem;
         background-color: var(--color-bg-btn);
         border-radius: 0.25rem;
         cursor: pointer;
         font-size: var(--fs-xs);
+        text-align: center;
         transition: all 150ms ease-in-out;
     }
     /* .item:hover {

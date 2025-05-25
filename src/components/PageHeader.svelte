@@ -17,8 +17,14 @@
     h3 {
         color: var(--color-grey-dark-03-rgb);
         font-family: var(--font-serif);
-        font-size: var(--fs-2xl);
-        margin-bottom: 2rem;
+        font-size: var(--fs-xl);
+        /* margin-bottom: 1rem; */
+    }
+    @media (min-width: 40rem) {
+        h3 {
+            font-size: var(--fs-2xl);
+            margin-bottom: 1rem;
+        }
     }
     p {
         font-weight: 200;

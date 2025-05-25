@@ -41,7 +41,7 @@
 
 <div class="date-picker">
     <div class="fieldset">
-        <h4 class="label">Date</h4>
+        <h4 class="label">Pick a date</h4>
         <p class="help">When would you like to drop by?</p>
         <Calendar />
         <!-- <Calendar ondateclick={selectDate} /> -->
@@ -60,7 +60,7 @@
 
 <style>
     .date-picker {
-        min-width: 20rem;
+        /* min-width: 20rem; */
         width: 100%;
         display: flex;
         flex-direction: column;
@@ -72,15 +72,16 @@
         font-size: var(--fs-md);
         font-weight: 500;
         /* margin-bottom: 0.25rem; */
-        margin-left: 0.25rem;
+        /* margin-left: 0.25rem; */
     }
     .help {
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-sm);
+        /* font-size: var(--fs-sm); */
+        font-size: var(--fs-xs);
         font-style: italic;
         font-weight: 200;
-        margin-bottom: 0.25rem;
-        margin-left: 0.25rem;
+        margin-bottom: 0.75rem;
+        /* margin-left: 0.25rem; */
     }
     /* .select {
         position: relative;

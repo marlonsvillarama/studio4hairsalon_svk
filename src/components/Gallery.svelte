@@ -1,4 +1,5 @@
 <script>
+    import Masonry from "./Masonry.svelte";
     // import { createGalleryData } from "$lib/data/gallery.svelte";
     // const gallery = createGalleryData();
 
@@ -63,6 +64,16 @@
 
 <section class="wrapper">
     <div class="grid">
+        <!-- <Masonry
+            stretchFirst={true}
+            gridGap={'1.5rem'}
+            colWidth={'minmax(Min(20rem, 100%), 1fr'}
+            items={images}
+        >
+            {#each images as img}
+                <img src={img} alt="" loading="lazy">
+            {/each}
+        </Masonry> -->
         {#each groupImages() as column}
             <div class="col">
                 {#each column as img}
@@ -80,10 +91,19 @@
 
 <style>
     .grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-direction: column;
+        /* display: grid;
+        grid-template-columns: 1fr; */
         gap: 1rem;
         width: 100%;
+    }
+    @media (min-width: 32rem) {
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            /* grid-auto-rows: minmax(20rem, auto); */
+        }
     }
     .col {
         /* border: 1px solid red; */

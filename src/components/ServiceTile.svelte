@@ -6,7 +6,7 @@
     <img src={image} alt={label}>
     <div class="text">
         <h3>{label}</h3>
-        <p>{description}</p>
+        <!-- <p>{description}</p> -->
     </div>
 </div>
 

@@ -61,7 +61,7 @@
     const submitData = async () => {
         console.log('submitData payload', bookingData.data);
 
-        let jsonResponse = await fetch(API_URL, {
+        /* let jsonResponse = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -72,11 +72,16 @@
                 service: servicesData.getServiceById(bookingData.service)
             })
         });
-        jsonResponse = await jsonResponse.json();
+        jsonResponse = await jsonResponse.json(); */
+
+        let jsonResponse = { ok: true, id: 12345678890 };
         console.log(`submitData jsonResponse`, jsonResponse);
 
         submitted = true;
         success = jsonResponse.ok;
+        if (success && jsonResponse.id) {
+            window.location.href = `/confirm?id=${jsonResponse.id}`;
+        }
     };
 
     const tryAgain = () => {
@@ -102,7 +107,7 @@
             }
             case 2: {
                 console.log('bookingData', bookingData);
-                if (!bookingData.name || !bookingData.email || !bookingData.phone) {
+                if (!bookingData.name || !bookingData.email) {
                     alert('Please complete your personal details.');
                     return false;
                 }
@@ -136,8 +141,8 @@
 
         <div class="step" data-step="2">
             <FieldSet id="name" label="Your name" help="Tell us who you are..." bind:value={bookingData.name} />
-            <FieldSet id="phone" label="Phone" help="Where can we call you..." bind:value={bookingData.phone} type='phone' />
-            <FieldSet id="email" label="Email" help="How can we notify you..." bind:value={bookingData.email} type='email' />
+            <FieldSet id="email" label="Email" help="How can we notify you?" bind:value={bookingData.email} type='email' />
+            <FieldSet id="phone" label="Phone" help="Where can we call you?" bind:value={bookingData.phone} type='phone' optional={true} />
         </div>
 
         <div class="step confirm" data-step="3">
@@ -157,20 +162,25 @@
         </div>
     </div>
 
-    <div id="confirmForm"
+    <div id="errorForm"
         class={[
             "form",
-            { hidden: submitted === false }
+            { hidden: step < 4 &&
+                (
+                    submitted === false || (submitted === true && success === true)
+                )
+            }
         ]}
     >
         <div class="step active">
-            <h1>{success === true ? 'Awesome!' : 'Something went wrong...'}</h1>
-            {#if success === true}
+            <h1>Something went wrong...</h1>
+            <!-- <h1>{success === true ? 'Awesome!' : 'Something went wrong...'}</h1> -->
+            <!-- {#if success === true}
                 <p>You have successfully booked an appointment with <strong>Studio 04 Hair Salon</strong>. You should receive an email shortly containing its details.</p>
                 <p>Please note that service cancellations must be requested <strong><u>at least 1 day</u></strong> before your scheduled appointment.</p>
-            {:else}
+            {:else} -->
                 <p>Your appointment did not go through this time. Please click the button below to try again.</p>
-            {/if}
+            <!-- {/if} -->
             
             <p>For any questions or concerns, please feel free to contact us:</p>
 
@@ -187,12 +197,12 @@
         </div>
 
         <div class="actions">
-            {#if success === true}
-                <button type="button" onclick={() => { window.location = '/'; }}>Return to Home page</button>
-                <button type="button" class="cta" onclick={goBook}>Book another appointment</button>
-            {:else}
+            <!-- {#if success === true}
+                <button type="button" onclick={() => { window.location = '/'; }}>Home</button>
+                <button type="button" class="cta" onclick={goBook}>Book again</button>
+            {:else} -->
                 <button type="button" class="cta" onclick={tryAgain}>Try again</button>
-            {/if}
+            <!-- {/if} -->
         </div>
     </div>
 </section>
@@ -207,27 +217,32 @@
         /* border: 1px solid green; */
         padding: 0;
         margin-bottom: 0.5rem;
-        max-width: 50%;
-        min-width: 20rem;
-        width: 50%;
+        /* max-width: 50%; */
+        /* min-width: 20rem; */
+        width: 100%;
         display: none;
-        box-sizing: content-box;
+    }
+    @media (min-width: 40rem) {
+        .step {
+            width: 34rem;
+        }
     }
     .step.active {
         display: block;
         flex-direction: column;
         gap: 2rem;
     }
-    @media (min-width: 40rem) {
+    /* @media (min-width: 40rem) {
         .step {
             padding: 1.5rem 1.75rem;
         }
-    }
+    } */
     .step > *:not(:last-child) {
         margin-bottom: 2rem;
     }
     .form {
-        border: 0px solid red;
+        /* border: 1px solid red; */
+        /* box-sizing: content-box; */
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -294,11 +309,11 @@
         letter-spacing: 0.25px;
     }
     
-    #confirmForm {
+    #errorForm {
         color: var(--color-grey-dark-03-rgb);
         /* border: 1px solid red; */
     }
-    #confirmForm p {
+    #errorForm p {
         font-size: var(--fs-xs);
     }
     .contact > .row {

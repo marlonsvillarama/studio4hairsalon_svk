@@ -8,7 +8,7 @@
 
 <!-- <main> -->
 <div class="page">
-    <PageHeader title="Our Gallery" text="See our past work and." />
+    <PageHeader title="Gallery" text="" />
     <Gallery images={gallery.images} />
 </div>
 <!-- </main> -->

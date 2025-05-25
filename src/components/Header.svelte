@@ -14,7 +14,7 @@
         </div>
     </div>
     <div class="menu small">
-        <div class="logo">Studio 4</div>
+        <a class="logo" href="/">Studio 4</a>
         <div>
             <!-- <a href="/contact" class="contact">Contact Us</a> -->
             <a href="/book" class="cta">Book Now</a>

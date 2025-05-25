@@ -270,7 +270,8 @@
         border: 0px solid red;
         padding: 0.5rem 0;
         cursor: pointer;
-        border-radius: 0.5rem;
+        border-radius: 0.25rem;
+        font-size: var(--fs-sm);
     }
     .date:not(.outside):hover {
         background-color: var(--color-border-lite-extra);

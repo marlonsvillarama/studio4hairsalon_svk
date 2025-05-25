@@ -3,6 +3,8 @@
 
     import { createBookingData } from "$lib/data/booking.svelte";
     import { createServicesData } from "$lib/data/services.svelte";
+    import ClockIcon from '$lib/images/icons/clock.svg';
+    import DollarIcon from '$lib/images/icons/dollar.svg';
     import UserIcon from '$lib/images/icons/user.svg';
     import PhoneIcon from '$lib/images/icons/phone.svg';
     import EmailIcon from '$lib/images/icons/email.svg';
@@ -15,7 +17,11 @@
     });
 
     let activeServiceName = $derived.by(() => {
-        return activeService ? `${activeService.category.name} - ${activeService.name}` : '';
+        return activeService ? activeService.name : '';
+    });
+
+    let activeCategoryName = $derived.by(() => {
+        return activeService ? activeService.category.name : '';
     });
 
     let bookingDate = $derived.by(() => {
@@ -46,8 +52,9 @@
     </div>
 
     <div class="service">
-        <h3>{activeServiceName}</h3>
-        <p>{activeService.description}</p>
+        <span>{activeServiceName}</span>
+        <p>{activeCategoryName}</p>
+        <!-- <p>{activeService.description}</p> -->
     </div>
 
     <div class="date">
@@ -55,17 +62,32 @@
         <span class="value">{bookingTime}</span>
     </div>
     
-    <div class="price">
-        <span>About {activeService.duration} minutes</span>
-        <div>
+    <!-- <div class="price">
+        <div class="row">
+            <img src={ClockIcon}>
+            <span>About {activeService.duration} minutes</span>
+        </div>
+        <div class="row">
+            <img src={DollarIcon}>
+            <span>{#if activeService.range === true}starts from {/if}{activeService.price}</span>
+        </div> -->
+        <!-- <div>
             {#if activeService.range === true}
                 <span class="label">starts from</span>
             {/if}
             <span class="value">${activeService.price}</span>
-        </div>
-    </div>
+        </div> -->
+    <!-- </div> -->
     
     <div class="client">
+        <div class="row">
+            <img src={ClockIcon}>
+            <span>About {activeService.duration} minutes</span>
+        </div>
+        <div class="row">
+            <img src={DollarIcon}>
+            <span>This service {#if activeService.range === true}starts from {:else}costs {/if} ${activeService.price}</span>
+        </div>
         <div class="row">
             <img src={UserIcon}>
             <span class="name">{bookingData.name}</span>
@@ -86,7 +108,7 @@
         color: var(--color-grey-dark-03-rgb);
     }
     .confirm > *:not(:last-child) {
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
     }
 
     .reminder h3 {
@@ -98,12 +120,25 @@
     }
     .reminder p {
         color: var(--color-grey-dark-03-rgb-lite);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
+        font-style: italic;
     }
 
-    .service h3 {
-        font-size: var(--fs-lg);
-        font-weight: 500;
+    .service {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    @media (min-width: 40rem) {
+        .service {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+    .service span {
+        font-size: var(--fs-md);
+        font-weight: 700;
         /* margin-bottom: 0.375rem; */
         /* padding-bottom: 0.5rem;
         border-bottom: 2px solid var(--color-accent); */
@@ -111,26 +146,44 @@
     .service p {
         color: var(--color-grey-dark-03-rgb-lite);
         font-size: var(--fs-sm);
+        font-weight: 300;
     }
 
+    /* .price {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        /* border: 0; */
+        /* border: 1px solid var(--color-border-lite); */
+        /* border-radius: 0.5rem; */
+        /* background-color: var(--color-border-lite-extra); *!/
+        background-color: white;
+        color: var(--color-grey-dark-03-rgb);
+        font-size: var(--fs-sm);
+        font-weight: 200;
+    } */
+
     .date {
+    /* .price { */
         display: flex;
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
         color: var(--color-grey-dark-03-rgb);
         /* color: white; */
+        font-size: var(--fs-xs);
         font-weight: 400;
         letter-spacing: 0.25px;
-        padding: 1rem 2rem;
-        border: 0;
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--color-accent);
         border-radius: 0.5rem;
-        background-color: var(--color-accent);
+        /* background-color: var(--color-accent); */
         /* box-shadow: var(--box-shadow); */
     }
 
     .client {
-        line-height: 2rem;
+        line-height: 1rem;
 
     }
     .client > .row:not(:last-child) {
@@ -142,34 +195,21 @@
         align-items: center;
         gap: 1.5rem;
     }
+    /* .price img, */
     .client img {
-        height: 1.5rem;
+        height: 1.25rem;
         /* border: 1px solid red; */
         text-align: center;
     }
     .row > span {
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         font-weight: 300;
         letter-spacing: 0.5px;
-    }
-
-    .price {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem 2rem;
-        /* border: 0; */
-        border: 1px solid var(--color-border-lite);
-        border-radius: 0.5rem;
-        /* background-color: var(--color-border-lite-extra); */
-        color: var(--color-grey-dark-03-rgb);
-        font-weight: 200;
     }
     .value {
         /* margin-left: 1rem; */
         font-weight: 500;
-        font-size: var(--fs-xl);
+        font-size: var(--fs-xs);
         letter-spacing: 0;
     }
 </style>

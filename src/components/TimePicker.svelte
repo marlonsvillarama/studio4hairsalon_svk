@@ -37,7 +37,7 @@
         let { id, index } = options;
         let output = [];
         let svc = servicesData.getServiceById(id);
-        let slots = svc.duration / 30;
+        let slots = svc ? svc.duration / 30 : 1;
 
         for (let j = 0; j < slots && (index + j) < allStartTimes.length; j++) {
             output.push(allStartTimes[index + j].dt);
@@ -144,7 +144,7 @@
             { hidden: asyncWorking === true || availableTimes.length <= 0 }
         ]}
     >
-        <h4 class="label">Time</h4>
+        <h4 class="label">Pick a time</h4>
         <p class="help">What time works best for you?</p>
 
         <div id="time-list">
@@ -174,7 +174,7 @@
 
 <style>
     .time-picker {
-        min-width: 20rem;
+        /* min-width: 20rem; */
         width: 100%;
         display: flex;
         flex-direction: column;
@@ -185,15 +185,15 @@
         color: var(--color-grey-dark-03-rgb);
         font-size: var(--fs-md);
         font-weight: 500;
-        margin-left: 0.25rem;
+        /* margin-left: 0.25rem; */
     }
     .help {
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         font-style: italic;
         font-weight: 200;
-        margin-bottom: 0.25rem;
-        margin-left: 0.25rem;
+        margin-bottom: 0.75rem;
+        /* margin-left: 0.25rem; */
     }
 
     #time-list {
@@ -203,11 +203,12 @@
         grid-auto-columns: 1fr;
     }
     #time-list > button {
-        padding: 0.75rem;
+        padding: 1rem 0.5rem;
         border: 0;
         border-radius: 0.25rem;
         background-color: var(--color-border-lite-extra);
         box-shadow: var(--button-shadow);
+        font-size: var(--fs-sm);
     }
     #time-list > button:hover {
         background-color: var(--color-border-lite);

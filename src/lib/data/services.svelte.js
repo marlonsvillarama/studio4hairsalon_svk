@@ -9,7 +9,7 @@ const allServices = $state([
     {
         id: 1,
         link: 'haircut',
-        name: 'Haircut',
+        name: 'Haircuts',
         description: 'Haircuts description goes here...',
         image: Haircut,
         services: [
@@ -29,16 +29,16 @@ const allServices = $state([
         image: Colour,
         services: [
             { id: 7, name: 'Root Colour', description: 'Root Colour description...', duration: 60, price: 110 },
-            { id: 8, name: 'Hair Colour', description: 'Hair Colour description...', duration: 60, price: 110 },
+            { id: 8, name: 'Hair Colour', description: 'Hair Colour description...', duration: 60, price: 120 },
             { id: 9, name: 'With Full Head Foils', description: 'With Full Head Foils description...', duration: 60, price: 220, range: true },
             { id: 10, name: 'With Keratin treatment', description: 'With Keratin treatment description...', duration: 60, price: 270, range: true },
-            { id: 11, name: 'Full Head Foil with Toner', description: 'Full Head Foil with Toner description...', duration: 60, price: 110 }
+            { id: 11, name: 'Full Head Foil with Toner', description: 'Full Head Foil with Toner description...', duration: 60, price: 180 }
         ]
     },
     {
         id: 3,
         link: 'treatment',
-        name: 'Treatment',
+        name: 'Keratin Treatment',
         description: 'Treatment description goes here...',
         image: Treatment,
         services: [
@@ -57,7 +57,7 @@ const allServices = $state([
         image: Makeup,
         services: [
             { id: 17, name: 'Hair and Make-up', description: 'Hair and Make-up description...', duration: 120, price: 150 },
-            { id: 18, name: 'Hair and Make-up (Bride)', description: 'Hair and Make-up (Bride) description...', duration: 120, price: 200 },
+            { id: 18, name: 'Hair and Make-up for bride', description: 'Hair and Make-up (Bride) description...', duration: 120, price: 200 },
             { id: 19, name: 'Hair styling', description: 'Hair styling description...', duration: 120, price: 60 },
             { id: 20, name: 'Eyebrow tattoo', description: 'Eyebrow tattoo description...', duration: 120, price: 200 },
             { id: 21, name: 'Eyeliner tattoo', description: 'Eyeliner tattoo description...', duration: 120, price: 150 }

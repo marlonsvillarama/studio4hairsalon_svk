@@ -32,7 +32,7 @@
 
 <div class="service-picker">
     <div class="fieldset">
-        <h4 class="label">Service</h4>
+        <h4 class="label">Choose a service</h4>
         <p class="help">What would you like to have?</p>
 
         <div class="select" id="serviceSelect">
@@ -82,12 +82,14 @@
 
 <style>
     .service-picker {
-        min-width: 20rem;
+        /* min-width: 20rem; */
         width: 100%;
         display: flex;
         flex-direction: column;
         gap: 1rem;
         margin-bottom: 2rem;
+        /* border: 1px solid green; */
+        box-sizing: border-box;
     }
     .fieldset,
     .price {
@@ -97,20 +99,22 @@
         color: var(--color-grey-dark-03-rgb);
         font-size: var(--fs-md);
         font-weight: 500;
-        margin-left: 0.25rem;
+        /* margin-bottom: 0.25rem; */
+        /* border: 1px solid red; */
     }
     .help {
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         font-style: italic;
         font-weight: 200;
         margin-bottom: 0.25rem;
-        margin-left: 0.25rem;
+        /* margin-left: 0.25rem; */
     }
     .select {
         position: relative;
         display: inline-block;
         width: 100%;
+        margin-top: 0.5rem;
     }
     .select-button {
         display: flex;
@@ -120,9 +124,10 @@
         border: 1px solid var(--color-border-lite);
         border-radius: 0.5rem;
         cursor: pointer;
-        font-size: var(--fs-sm);
-        padding: 0.75rem 1.25rem;
+        font-size: var(--fs-xs);
+        padding: 0.75rem 0.75rem;
         width: 100%;
+        box-sizing: border-box;
     }
     .selected-value {
         color: var(--color-grey-dark-03-rgb);
@@ -142,7 +147,8 @@
         border-radius: 0.5rem;
         background-color: white;
         list-style: none;
-        padding: 0.75rem 1.25rem;
+        /* padding: 0.75rem 1.25rem; */
+        padding: 0.25rem 1rem;
         margin: 0.5rem 0 0;
         box-shadow: var(--button-shadow);
         max-height: 15rem;
@@ -161,11 +167,12 @@
         border-radius: 0.5rem;
     }
     .select-options > * {
-        padding: 0.5rem 1.5rem;
+        /* border: 1px solid red; */
+        padding: 0.25rem 1.25rem;
         cursor: pointer;
         color: var(--color-grey-dark-03-rgb);
         font-family: var(--font-default);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         font-weight: 300;
         transition: all 150ms ease-in-out;
         border-radius: 0.25rem;
@@ -173,7 +180,7 @@
     }
     .select-options > .category {
         font-weight: 600;
-        padding: 0.5rem 0;
+        padding: 0.5rem 0 0.25rem;
         border-radius: 0;
         border-bottom: 2px solid var(--color-accent);
     }
@@ -190,15 +197,16 @@
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem 2rem;
+        padding: 0.75rem 1rem;
         border: 0;
         border-radius: 0.5rem;
         background-color: var(--color-border-lite-extra);
+        font-size: var(--fs-xs);
         font-weight: 200;
     }
     .value {
         margin-left: 1rem;
         font-weight: 500;
-        font-size: var(--fs-xl);
+        font-size: var(--fs-lg);
     }
 </style>

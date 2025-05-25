@@ -65,16 +65,16 @@
     .number {
         /* color: var(--color-grey-dark-03-rgb-lite); */
         font-family: var(--font-serif);
-        font-size: var(--fs-xl);
+        font-size: var(--fs-lg);
         font-weight: 400;
         border: 1px solid var(--color-grey-dark-03-rgb-lite);
-        padding: 7px 12px;
+        padding: 5px 12px;
         border-radius: 50%;
     }
-    @media (min-width: 40rem) {
+    @media (min-width: 64rem) {
         .number {
-            font-size: var(--fs-2xl);
-            padding: 13px 16px;
+            /* font-size: var(--fs-2xl); */
+            /* padding: 13px 16px; */
             border-radius: 50%;
         }
     }
@@ -85,7 +85,7 @@
     }
     .help-short {
         display: block;
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         font-weight: 200;
     }
     @media (min-width: 40rem) and (width < 64rem) {
