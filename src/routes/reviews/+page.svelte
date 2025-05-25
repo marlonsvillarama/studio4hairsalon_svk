@@ -8,7 +8,7 @@
 
 <!-- <main> -->
 <div class="page">
-    <PageHeader title="Reviews" text="See what our customers say." />
+    <PageHeader title="Reviews" text="" />
     <Gallery images={gallery.images} />
 </div>
 <!-- </main> -->
