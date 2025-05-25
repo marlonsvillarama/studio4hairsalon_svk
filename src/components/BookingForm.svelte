@@ -61,7 +61,7 @@
     const submitData = async () => {
         console.log('submitData payload', bookingData.data);
 
-        /* let jsonResponse = await fetch(API_URL, {
+        let jsonResponse = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -72,9 +72,9 @@
                 service: servicesData.getServiceById(bookingData.service)
             })
         });
-        jsonResponse = await jsonResponse.json(); */
+        jsonResponse = await jsonResponse.json();
 
-        let jsonResponse = { ok: true, id: 12345678890 };
+        // let jsonResponse = { ok: true, id: 12345678890 };
         console.log(`submitData jsonResponse`, jsonResponse);
 
         submitted = true;
