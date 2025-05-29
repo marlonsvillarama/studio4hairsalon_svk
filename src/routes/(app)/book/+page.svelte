@@ -1,6 +1,6 @@
 <script>
-    import PageHeader from "../../components/PageHeader.svelte";
-    import BookingForm from "../../components/BookingForm.svelte";
+    import PageHeader from "../../../components/PageHeader.svelte";
+    import BookingForm from "../../../components/BookingForm.svelte";
 </script>
 
 <!-- <main> -->

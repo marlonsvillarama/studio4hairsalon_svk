@@ -1,6 +1,6 @@
 <script>
-    import PageHeader from "../../components/PageHeader.svelte";
-    import Gallery from "../../components/Gallery.svelte";
+    import PageHeader from "../../../components/PageHeader.svelte";
+    import Gallery from "../../../components/Gallery.svelte";
 
     import { createReviewsData } from "$lib/data/reviews.svelte";
     const gallery = createReviewsData();

@@ -1,5 +1,5 @@
 <script>
-    import PageHeader from "../../components/PageHeader.svelte";
+    import PageHeader from "../../../components/PageHeader.svelte";
     import { createBookingData } from "$lib/data/booking.svelte";
     import { createServicesData } from "$lib/data/services.svelte";
     import ClockIcon from '$lib/images/icons/clock.svg';

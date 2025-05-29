@@ -1,7 +1,7 @@
 <script>
     import { createServicesData } from "$lib/data/services.svelte";
-    import PageHeader from "../../components/PageHeader.svelte";
-    import ServiceRow from "../../components/ServiceRow.svelte";
+    import PageHeader from "../../../components/PageHeader.svelte";
+    import ServiceRow from "../../../components/ServiceRow.svelte";
 
     const services = createServicesData();
 </script>

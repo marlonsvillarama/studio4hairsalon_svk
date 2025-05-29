@@ -1,6 +1,13 @@
-<script></script>
+<script>
+    let { minimum = false } = $props();
+</script>
 
-<header>
+<header class={[
+    { solo: minimum === true }
+]}>
+    {#if minimum === true }
+    <a class="logo" href="/">Studio 4</a>
+    {:else}
     <div class="menu full">
         <nav>
             <a href="/services">Services</a>
@@ -20,6 +27,7 @@
             <a href="/book" class="cta">Book Now</a>
         </div>
     </div>
+    {/if}
 </header>
 
 <style>
@@ -62,6 +70,11 @@
         .menu.small {
             display: none;
         }
+    }
+    .solo {
+        padding: 0.5rem 0 0;
+        position: relative;
+        text-align: center;
     }
     .menu > .logo {
         margin-top: 1rem;
