@@ -12,8 +12,8 @@ export const parseDate = (str) => {
     return new Date(str.slice(0, 4), parseInt(str.slice(4, 6)) - 1, str.slice(6));
 };
 
-/* export const parseTime = (str) => {
-    let now = new Date();
+export const parseTime = (str) => {
+    /* let now = new Date();
     let dt = new Date(
         now.getFullYear(),
         now.getMonth(),
@@ -21,7 +21,13 @@ export const parseDate = (str) => {
         parseInt(str.slice(0, 2),
         parseInt(str.slice(2)))
     );
-}; */
+
+    return  */
+    if (!str) { return ''; }
+    
+    let hours = str.slice(0, 2);
+    return `${hours}:${str.slice(2)} ${hours >= 12 ? 'PM' : 'AM'}`;
+};
 
 export const unparseTime = (dt) => {
     if (!dt) { return ''; }
@@ -36,6 +42,15 @@ export const unparseDate = (date) => {
     return date.getFullYear() +
         (date.getMonth() + 1).toString().padStart(2, '0') +
         date.getDate().toString().padStart(2, '0');
+};
+
+export const writeDateString = (date) => {
+    return date.toLocaleDateString('en-NZ', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    })
 };
 
 export const createBookingData = () => {

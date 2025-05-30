@@ -11,7 +11,6 @@
     import { API_URL } from '$lib/data/api.svelte';
     import { createBookingData } from '$lib/data/booking.svelte';
     import { createServicesData } from '$lib/data/services.svelte';
-    import { onMount } from 'svelte';
 
     const bookingData = createBookingData();
     const servicesData = createServicesData();

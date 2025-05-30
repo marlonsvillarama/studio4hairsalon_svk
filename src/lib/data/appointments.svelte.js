@@ -1,28 +1,135 @@
 import { API_URL } from "./api.svelte";
 
-// let appointments = $state(
-//     [{
-//         name: "Customer 1",
-//         email: "customer1@gmail.com",
-//         service: 13,
-//         date: "20250515",
-//         time: "1000"
-//     },
-//     {
-//         name: "Customer 2",
-//         email: "customer_02@gmail.com",
-//         service: 1,
-//         date: "20250515",
-//         time: "1400"
-//     },
-//     {
-//         name: "Customer 3",
-//         email: "XXXXXXXXXXXXXXXXXXXXX",
-//         service: 12,
-//         date: "20250516",
-//         time: "1100"
-//     }]
-// );
+export const appointments = [
+    {
+        id: '1',
+        name: 'Apple Villarama',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Hair and Make-up for bride',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '2',
+        name: 'Apple Villarama2',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Men/Women (Gold Card Holder)',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '3',
+        name: 'Apple Villarama3',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Women\'s Haircut with blowdry',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '4',
+        name: 'Apple Villarama4',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Hair and Make-up for bride',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '5',
+        name: 'Apple Villarama5',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Hair and Make-up for bride',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '6',
+        name: 'Apple Villarama6',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Hair and Make-up for bride',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '7',
+        name: 'Apple Villarama7',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Hair and Make-up for bride',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+    {
+        id: '8',
+        name: 'Apple Villarama8',
+        dt: '20250529',
+        time: '1030',
+        email: 'apple.linson02@yahoo.com',
+        phone: '0227000215',
+        service: {
+            id: '6',
+            name: 'Hair and Make-up for bride',
+            category: {
+                id: '1',
+                name: 'Haircut'
+            }
+        }
+    },
+];
 
 export const createAppointmentsData = () =>  {
     return {

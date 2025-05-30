@@ -1,73 +1,89 @@
 <script>
+// @ts-nocheck
+
     import { createAdminData } from '$lib/data/admin.svelte';
+    import CalendarIcon from '$lib/images/icons/calendar.svg';
+    import ClockIcon from '$lib/images/icons/clock.svg';
     import UserIcon from '$lib/images/icons/user.svg';
     import PhoneIcon from '$lib/images/icons/phone.svg';
     import EmailIcon from '$lib/images/icons/email.svg';
-    import { parseTime } from '$lib/data/booking.svelte';
+    import { parseDate, parseTime, writeDateString } from '$lib/data/booking.svelte';
+    import { onMount } from 'svelte';
 
-    let adminData = createAdminData();
     let { data } = $props();
 
-    let collapse = $derived(adminData.listDisplay === true)
+    const changeService = () => {};
 
-    const viewDetail = () => {
-        // adminData.appointment = data;
-        window.location.href = `/admin/appointment?id=${data.id}`;
-    };
+    const changeDateTime = () => {};
 </script>
 
-<div class="tile" onclick={viewDetail}>
-    <div class="header">
-        <h3><span class="bold">{data ? parseTime(data.time) : ''}</span> | {data?.service?.name}</h3>
-    </div>
-    <div class="contents">
-        <!-- <div class="col"> -->
+<div class="content">
+
+    <div class="detail">
+        <!-- <div class="header">
+            <h3><span class="bold">{data ? parseTime(data?.time) : ''}</span> | {data?.service?.name}</h3>
+        </div> -->
+        <div class="contents">
             <div class="row">
                 <img src={UserIcon}>
                 <span class="name">{data?.name}</span>
             </div>
-            <div class={[
-                "row",
-                { hidden: collapse === true }
-            ]}>
+            <div class="row">
                 <img src={EmailIcon}>
                 <span class="name">{data?.email}</span>
             </div>
-            <div class={[
-                "row",
-                { hidden: collapse === true }
-            ]}>
+            <div class="row">
                 <img src={PhoneIcon}>
                 <span class="name">{data?.phone}</span>
             </div>
-            <!-- <div class="row">
-                <img src={ClockIcon}>
-                <span>About 30 minutes</span>
-            </div> -->
-            <!-- <div class="row">
-                <img src={DollarIcon}>
-                <span>starts from $110</span>
-            </div> -->
-        <!-- </div> -->
+        </div>
     </div>
-    <!-- <div class="actions">
-        <button class="cta">Edit</button>
-        <button class="delete">Delete</button>
-    </div> -->
+
+    <div>
+        <div class="detail">
+            <div class="contents">
+                <span class="bold">{data.service?.name}</span>
+            </div>
+        </div>
+    
+        <div class="actions">
+            <button>Change the service</button>
+        </div>
+    </div>
+
+    <div>
+        <div class="detail">
+            <div class="contents">
+                <div class="row">
+                    <img src={CalendarIcon}>
+                    <span>{ writeDateString(parseDate(data.dt)) }</span>
+                </div>
+                <div class="row">
+                    <img src={ClockIcon}>
+                    <span>{parseTime(data.time)}</span>
+                </div>
+            </div>
+        </div>
+    
+        <div class="actions">
+            <button>Change the date/time</button>
+        </div>
+    </div>
+    
 </div>
 
 <style>
-    .tile {
+    .content > *:not(:last-child) {
+        margin-bottom: 1rem;
+    }
+    .detail {
         background-color: white;
         border: 1px solid var(--color-border-lite-extra);
         /* border: ; */
         border-left: 3px solid var(--color-accent);
         border-radius: 0.25rem;
         color: var(--color-grey-dark-03-rgb);
-        cursor: pointer;
-    }
-    .tile:not(:last-of-type) {
-        margin-bottom: 1rem;
+        /* cursor: pointer; */
     }
     .header {
         display: flex;
@@ -91,6 +107,7 @@
     }
     .contents {
         padding: 0.25rem 0.75rem;
+        font-size: var(--fs-xxs);
         /* display: grid;
         gap: 1rem;
         grid-template-columns: 60% calc(40% - 1rem); */
@@ -113,6 +130,7 @@
     .row img {
         height: 0.75rem;
     }
+
     .actions {
         /* border: 1px solid red; */
         width: 100%;
@@ -121,31 +139,14 @@
         justify-content: space-between;
         align-items: center;
         gap: 0.5rem;
-        padding: 0 0.25rem 0.25rem;
+        padding: 0 0 0.25rem;
     }
     .actions button {
         width: 100%;
-        font-size: var(--fs-xs);
-        padding: 0.3125rem 0.25rem;
+        font-size: var(--fs-xxs);
+        padding: 0.5rem 0.25rem;
         border: 1px solid var(--color-border-lite);
         border-radius: 0.25rem;
         transition: all 150ms ease-in-out;
-    }
-    button.cta {
-        background-color: var(--color-bg-btn);
-        border: 1px solid var(--color-bg-btn);
-        font-weight: 700;
-    }
-    button.cta:hover {
-        background-color: var(--color-bg-btn-hover);
-    }
-    button.delete {
-        background-color: white;
-        border: 1px solid var(--color-border-lite);
-        color: var(--color-grey-lite-01);
-    }
-    button.delete:hover {
-        border: 1px solid var(--color-grey-dark-03-rgb-lite);
-        color: var(--color-grey-dark-03-rgb-dark);
     }
 </style>
