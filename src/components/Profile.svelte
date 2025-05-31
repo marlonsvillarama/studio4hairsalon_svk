@@ -1,11 +1,11 @@
 <script>
-    import Full from '$lib/images/john.jpg?enhanced';
+    import Full from '$lib/images/john.jpg';
     // import InAction from '$lib/images/in-action.jpg?enhanced';
 </script>
 
 <section class="wrapper">
     <div class="pics">
-        <enhanced:img src={Full} alt="John Fernandez">
+        <img src={Full} alt="John Fernandez">
         <!-- <enhanced:img src={InAction} alt="John Fernandez in action"> -->
     </div>
     <div class="profile">
@@ -59,7 +59,7 @@
         margin: 0 auto;
         box-shadow: var(--box-shadow);
     }
-    img {
+    .pics > img {
         width: 100%;
         height: auto;
     }
@@ -76,7 +76,7 @@
     .profile p {
         line-height: 2rem;
         margin-bottom: 2.5rem;
-        font-size: var(--fs-xs);
+        font-size: var(--fs-sm);
         font-weight: 200;
         letter-spacing: 0.5px;
     }

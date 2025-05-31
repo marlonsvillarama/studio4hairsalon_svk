@@ -79,7 +79,7 @@
         border-bottom: 1px solid var(--color-accent);
     }
     .header h3 {
-        font-size: var(--fs-xxs);
+        font-size: var(--fs-xs);
         font-weight: 300;
     }
     .header .bold {
@@ -108,7 +108,7 @@
         /* border: 1px solid green; */
         align-items: center;
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-xxs);
+        font-size: var(--fs-xs);
     }
     .row img {
         height: 0.75rem;

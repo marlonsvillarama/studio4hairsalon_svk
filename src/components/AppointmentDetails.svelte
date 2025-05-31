@@ -95,7 +95,7 @@
         border-bottom: 1px solid var(--color-accent);
     }
     .header h3 {
-        font-size: var(--fs-xxs);
+        font-size: var(--fs-xs);
         font-weight: 300;
     }
     .header .bold {
@@ -107,7 +107,7 @@
     }
     .contents {
         padding: 0.25rem 0.75rem;
-        font-size: var(--fs-xxs);
+        font-size: var(--fs-xs);
         /* display: grid;
         gap: 1rem;
         grid-template-columns: 60% calc(40% - 1rem); */
@@ -125,7 +125,7 @@
         /* border: 1px solid green; */
         align-items: center;
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-xxs);
+        font-size: var(--fs-xs);
     }
     .row img {
         height: 0.75rem;
@@ -143,7 +143,7 @@
     }
     .actions button {
         width: 100%;
-        font-size: var(--fs-xxs);
+        font-size: var(--fs-xs);
         padding: 0.5rem 0.25rem;
         border: 1px solid var(--color-border-lite);
         border-radius: 0.25rem;
