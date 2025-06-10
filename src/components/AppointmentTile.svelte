@@ -16,9 +16,9 @@
     };
 </script>
 
-<div class="tile" onclick={viewDetail}>
+<div class="tile">
     <div class="header">
-        <h3><span class="bold">{data ? parseTime(data.time) : ''}</span> | {data?.service?.name}</h3>
+        <h3><span class="bold">{data ? parseTime(data.time) : ''}</span> - {data?.service?.name}</h3>
     </div>
     <div class="contents">
         <!-- <div class="col"> -->
@@ -50,10 +50,11 @@
             </div> -->
         <!-- </div> -->
     </div>
-    <!-- <div class="actions">
-        <button class="cta">Edit</button>
+
+    <div class="actions">
+        <button class="cta" onclick={viewDetail}>Edit</button>
         <button class="delete">Delete</button>
-    </div> -->
+    </div>
 </div>
 
 <style>
@@ -61,10 +62,11 @@
         background-color: white;
         border: 1px solid var(--color-border-lite-extra);
         /* border: ; */
-        border-left: 3px solid var(--color-accent);
+        /* border-left: 3px solid var(--color-accent); */
         border-radius: 0.25rem;
         color: var(--color-grey-dark-03-rgb);
-        cursor: pointer;
+        /* cursor: pointer; */
+        /* padding: 0.25rem; */
     }
     .tile:not(:last-of-type) {
         margin-bottom: 1rem;
@@ -75,22 +77,27 @@
         justify-content: space-between;
         align-items: center;
         /* gap: 0.25rem; */
-        padding: 0.25rem 0.75rem;
-        border-bottom: 1px solid var(--color-accent);
+        padding: 0.5rem 1rem 0.25rem;
+        /* border-bottom: 1px solid var(--color-accent); */
     }
     .header h3 {
-        font-size: var(--fs-xs);
-        font-weight: 300;
+        /* font-size: var(--fs-xs); */
+        font-size: var(--fs-ssm);
+        /* font-weight: 300; */
+        font-weight: 600;
     }
-    .header .bold {
-        font-weight: 700;
+    /* .header .bold { */
         /* border: 1px solid red; */
-    }
+    /* } */
     .header span {
-        font-size: var(--fs-xs);
+        /* font-size: var(--fs-xs); */
+        font-size: var(--fs-ssm);
     }
     .contents {
-        padding: 0.25rem 0.75rem;
+        margin: 0 1rem 0.5rem;
+        padding: 0 1rem;
+        /* border: 1px solid red; */
+        border-left: 0.25rem solid var(--color-accent);
         /* display: grid;
         gap: 1rem;
         grid-template-columns: 60% calc(40% - 1rem); */
@@ -99,8 +106,8 @@
         border: 1px solid red;
     } */
     .contents > *:not(:last-child) {
-        /* margin-bottom: 0.125rem; */
-        margin-bottom: 0;
+        margin-bottom: 0.125rem;
+        /* margin-bottom: 0; */
     }
     .row {
         display: grid;
@@ -108,7 +115,8 @@
         /* border: 1px solid green; */
         align-items: center;
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-xs);
+        /* font-size: var(--fs-xs); */
+        font-size: var(--fs-ssm);
     }
     .row img {
         height: 0.75rem;
@@ -120,21 +128,25 @@
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0 0.25rem 0.25rem;
+        /* gap: 0.5rem; */
+        padding: 0;
     }
     .actions button {
         width: 100%;
         font-size: var(--fs-xs);
         padding: 0.3125rem 0.25rem;
-        border: 1px solid var(--color-border-lite);
-        border-radius: 0.25rem;
+        border: 0;
+        /* border: 1px solid var(--color-border-lite); */
+        border-collapse: collapse;
+        /* border-radius: 0.25rem; */
         transition: all 150ms ease-in-out;
     }
     button.cta {
         background-color: var(--color-bg-btn);
-        border: 1px solid var(--color-bg-btn);
+        /* border: 1px solid var(--color-bg-btn); */
+        border: 1px solid transparent;
         font-weight: 700;
+        border-bottom-left-radius: 0.25rem;
     }
     button.cta:hover {
         background-color: var(--color-bg-btn-hover);
@@ -142,7 +154,8 @@
     button.delete {
         background-color: white;
         border: 1px solid var(--color-border-lite);
-        color: var(--color-grey-lite-01);
+        border-bottom-right-radius: 0.25rem;
+        /* color: var(--color-grey-lite-01); */
     }
     button.delete:hover {
         border: 1px solid var(--color-grey-dark-03-rgb-lite);

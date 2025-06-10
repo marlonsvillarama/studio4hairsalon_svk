@@ -6,7 +6,7 @@
     // import CalendarIcon from '$lib/images/icons/calendar.svg';
     import Calendar from './Calendar.svelte';
 
-    let { ondateselect } = $props();
+    let { ondateselect, showlabel = true } = $props();
     
     const bookingData = createBookingData();
     
@@ -41,8 +41,14 @@
 
 <div class="date-picker">
     <div class="fieldset">
-        <h4 class="label">Pick a date</h4>
-        <p class="help">When would you like to drop by?</p>
+        <h4 class={[
+            "label",
+            { hidden: showlabel !== true }
+        ]}>Pick a date</h4>
+        <p class={[
+            "help",
+            { hidden: showlabel !== true }
+        ]}>When would you like to drop by?</p>
         <Calendar />
         <!-- <Calendar ondateclick={selectDate} /> -->
 

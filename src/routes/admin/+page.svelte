@@ -3,6 +3,7 @@
     import '../../css/app.css';
     import Calendar from "../../components/Calendar.svelte";
     import Header from "../../components/Header.svelte";
+    import AdminDatePicker from '../../components/AdminDatePicker.svelte';
     import AppointmentTile from "../../components/AppointmentTile.svelte";
     import ListIcon from '$lib/images/icons/list.svg';
     import RowsIcon from '$lib/images/icons/rows.svg';
@@ -43,6 +44,9 @@
                 ><img src={RowsIcon}></button>
             </div>
         </div>
+        <div class="wrapper">
+            <AdminDatePicker />
+        </div>
     </section>
 
     <!-- <section class="wrapper">
@@ -50,11 +54,11 @@
     </section> -->
 
     <section id="appointments">
-        <div class="wrapper">
+        <!-- <div class="wrapper"> -->
             {#each appointments as item}
                 <AppointmentTile data={item} />
             {/each}
-        </div>
+        <!-- </div> -->
     </section>
 
 </div>
@@ -86,13 +90,19 @@
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem 0 1rem;
+        /* padding-top: 1rem; */
         /* border: 1px solid green; */
+    }
+    .page-header > *:first-child {
+        padding-top: 1rem;
+    }
+    .page-header > *:not(:first-child) {
+        padding-top: 0.5rem;
     }
     .title {
         /* color: var(--color-accent); */
         font-family: var(--font-sans);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-md);
         font-weight: 500;
     }
     .display-btns {
@@ -127,7 +137,7 @@
     }
 
     #appointments {
-        padding: 1rem 0 2rem;
+        padding: 1rem 0.75rem 2rem;
         /* border: 1px solid red; */
         /* overflow-y: auto; */
     }

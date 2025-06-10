@@ -26,7 +26,7 @@ export const parseTime = (str) => {
     if (!str) { return ''; }
     
     let hours = str.slice(0, 2);
-    return `${hours}:${str.slice(2)} ${hours >= 12 ? 'PM' : 'AM'}`;
+    return `${hours}:${str.slice(2)}${hours >= 12 ? 'pm' : 'am'}`;
 };
 
 export const unparseTime = (dt) => {
