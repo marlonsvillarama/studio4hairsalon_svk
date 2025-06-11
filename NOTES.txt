@@ -1,0 +1,50 @@
+User Roles
+- Sales agents
+- Sales managers
+- Executives
+- Dispatched personnel
+- System administrators
+- Developers (?)
+
+FEATURES/USE CASES
+1. CRM
+    > Manual/automated entry of customer data
+        - Sales agent, through Booking System
+        - Sales agent, through CSV import
+    > Customer record view
+        - Sales agent, through Booking System
+        - Sales managers, through customer list and Booking System
+        - Dispatch, through mobile app (?)
+2. Booking System
+    > Manual entry of bookings
+        - Sales agents
+3. Automated Quotations
+    > Generate quotations
+        - Sales agent, through Booking System
+        - Sales managers, through customer list and Booking System
+4. Analytics
+
+
+QUESTIONS FOR BUSY BEE
+1. How many employees will use the system?
+2. Do you need to perform regular tasks like automated monthly invoicing?
+3. Do you need integration with any or all of the following?
+    a. Payroll system
+    b. Accounting/ERP system
+    c. SMS messaging for dispatch
+4. Do you need live location tracking of dispatches?
+5. What other features do you need?
+6. Has the tech stack been shared by the devs?
+
+
+QUESTIONS FOR THE GATEWAY STALLION
+1. What is the delivery timeline for the project?
+    a. How many total dev hours will be consumed? What is the hourly cost of development?
+    b. Will there be a PM to manage the development timeline? Who will own the project on the dev side?
+2. Will the system be desktop-based or cloud-based?
+3. If desktop-based:
+    - What are the expected infrastructure costs?
+4. If cloud-based:
+    - Where will the app be hosted?
+    - What are the expected infrastructure costs?
+5. What is your proposed technology stack?
