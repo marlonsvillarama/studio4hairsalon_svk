@@ -72,7 +72,7 @@
         border-radius: 0.25rem;
         color: var(--color-grey-dark-03-rgb);
         /* cursor: pointer; */
-        /* padding: 0.25rem; */
+        padding: 0.5rem;
     }
     .tile:not(:last-of-type) {
         margin-bottom: 1rem;
@@ -83,7 +83,7 @@
         justify-content: space-between;
         align-items: center;
         /* gap: 0.25rem; */
-        padding: 0.5rem 1rem 0.25rem;
+        padding: 0 1rem 0.25rem;
         /* border-bottom: 1px solid var(--color-accent); */
     }
     .header h3 {
