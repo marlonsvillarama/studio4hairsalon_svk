@@ -22,6 +22,7 @@
         let apiResponse = await fetch(`${API_URL}?dt=${dt}`);
         let jsonResponse = await apiResponse.json();
         console.log('jsonResponse body', jsonResponse);
+        jsonResponse.sort((a, b) => a.time > b.time);
         appointments = jsonResponse;
         showOverlay = false;
     };
