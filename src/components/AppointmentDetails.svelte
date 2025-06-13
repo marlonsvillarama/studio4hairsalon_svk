@@ -11,6 +11,7 @@
     import { onMount } from 'svelte';
 
     let { data } = $props();
+    let appointment = data.appointment;
 
     const changeService = () => {};
 
@@ -26,15 +27,15 @@
         <div class="contents">
             <div class="row">
                 <img src={UserIcon}>
-                <span class="name">{data?.name}</span>
+                <span class="name">{appointment?.name}</span>
             </div>
             <div class="row">
                 <img src={EmailIcon}>
-                <span class="name">{data?.email}</span>
+                <span class="name">{appointment?.em}</span>
             </div>
             <div class="row">
                 <img src={PhoneIcon}>
-                <span class="name">{data?.phone}</span>
+                <span class="name">{appointment?.ph}</span>
             </div>
         </div>
     </div>
@@ -42,7 +43,7 @@
     <div>
         <div class="detail">
             <div class="contents">
-                <span class="bold">{data.service?.name}</span>
+                <span class="bold">{appointment?.sid?.name}</span>
             </div>
         </div>
     
@@ -56,11 +57,11 @@
             <div class="contents">
                 <div class="row">
                     <img src={CalendarIcon}>
-                    <span>{ writeDateString(parseDate(data.dt)) }</span>
+                    <span>{ writeDateString(parseDate(appointment?.dt)) }</span>
                 </div>
                 <div class="row">
                     <img src={ClockIcon}>
-                    <span>{parseTime(data.time)}</span>
+                    <span>{parseTime(appointment?.time)}</span>
                 </div>
             </div>
         </div>
@@ -115,6 +116,9 @@
     /* .col {
         border: 1px solid red;
     } */
+    .contents .bold {
+        font-weight: 700;
+    }
     .contents > *:not(:last-child) {
         /* margin-bottom: 0.125rem; */
         margin-bottom: 0;

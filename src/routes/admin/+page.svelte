@@ -7,17 +7,36 @@
     import AppointmentTile from "../../components/AppointmentTile.svelte";
     import ListIcon from '$lib/images/icons/list.svg';
     import RowsIcon from '$lib/images/icons/rows.svg';
-    import { appointments } from '$lib/data/appointments.svelte';
+
+    import { API_URL } from '$lib/data/api.svelte';
     import { createAdminData } from "$lib/data/admin.svelte";
-    import { createBookingData, unparseDate } from "$lib/data/booking.svelte";
+    import { unparseDate } from "$lib/data/booking.svelte";
+    import { onMount } from 'svelte';
 
     let adminData = createAdminData();
-    let bookingData = createBookingData();
-    let selectedDate = $state(unparseDate(new Date()));
-    /* let appointments = $derived.by(() => {
-        let output = [];
-        return output;
-    }); */
+    let appointments = $state([]);
+    let showOverlay = $state(false);
+
+    const getAppointments = async (dt) => {
+        showOverlay = true;
+        let apiResponse = await fetch(`${API_URL}?dt=${dt}`);
+        let jsonResponse = await apiResponse.json();
+        console.log('jsonResponse body', jsonResponse);
+        appointments = jsonResponse;
+        showOverlay = false;
+    };
+
+    const ondateselect = async () => {
+        let dt = adminData.selectedDate;
+        console.log('page ondateselect dt', dt);
+        getAppointments(unparseDate(dt));
+    };
+
+    onMount(() => {
+        let dtString = unparseDate(adminData.selectedDate);
+        console.log('dtString', dtString);
+        getAppointments(dtString);
+    });
 
 </script>
 
@@ -45,7 +64,7 @@
             </div>
         </div>
         <div class="wrapper">
-            <AdminDatePicker />
+            <AdminDatePicker {ondateselect} />
         </div>
     </section>
 
@@ -54,6 +73,10 @@
     </section> -->
 
     <section id="appointments">
+        <div class={[
+            "overlay",
+            { hidden: showOverlay === false }
+        ]}></div>
         <!-- <div class="wrapper"> -->
             {#each appointments as item}
                 <AppointmentTile data={item} />
@@ -138,7 +161,16 @@
 
     #appointments {
         padding: 1rem 0.75rem 2rem;
+        position: relative;
         /* border: 1px solid red; */
         /* overflow-y: auto; */
+    }
+    .overlay {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: rgba(128, 128, 128, 0.5);
     }
 </style>

@@ -1,7 +1,8 @@
 <script>
     // @ts-nocheck
-    import { createBookingData, parseDate, unparseDate } from "$lib/data/booking.svelte";
-    
+    import { parseDate, unparseDate } from "$lib/data/booking.svelte";
+    import { createAdminData } from "$lib/data/admin.svelte";
+
     const allMonths = [
         'January',
         'February',
@@ -17,10 +18,10 @@
         'December'
     ];
 
-    // let { ondateclick } = $props();
+    const adminData = createAdminData();
+    let { ondateselect } = $props();
 
-    let bookingData = createBookingData();
-    let currentDate = new Date();
+    let currentDate = $state(new Date());
     let currentMonth = $derived(currentDate.getMonth());
     let currentYear = $derived(currentDate.getFullYear());
 
@@ -123,8 +124,10 @@
 
     const selectDate = (e) => {
         // bookingData.date = e.target.dataset.date;
-        bookingData.date = parseDate(e.target.dataset.date);
-        // ondateclick();
+        // bookingData.date = parseDate(e.target.dataset.date);
+        adminData.selectedDate = parseDate(e.target.dataset.date);
+        console.log('AdminCalendar selectedDate', adminData.selectedDate);
+        ondateselect();
     };
 </script>
 
@@ -134,7 +137,7 @@
             "date",
             { 
                 outside: options.active === false,
-                selected: unparseDate(bookingData.date) === unparseDate(options.date)
+                selected: unparseDate(currentDate) === unparseDate(options.date)
             }
         ]}
         data-date={unparseDate(options.date)}
@@ -214,7 +217,7 @@
     .calendar {
         /* border: 1px solid var(--color-accent); */
         border: 1px solid var(--color-border-lite);
-        border-radius: 0.5rem;
+        border-radius: 0.25rem;
         padding: 0.75rem 1.25rem;
         color: var(--color-grey-dark-03-rgb);
         text-align: center;
@@ -228,7 +231,7 @@
         align-items: center;
     }
     .calendar-header > span {
-        font-size: var(--fs-md);
+        font-size: var(--fs-sm);
         font-weight: 700;
     }
     .nav {

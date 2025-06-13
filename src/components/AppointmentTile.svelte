@@ -1,4 +1,5 @@
 <script>
+    import { API_URL } from '$lib/data/api.svelte';
     import { createAdminData } from '$lib/data/admin.svelte';
     import UserIcon from '$lib/images/icons/user.svg';
     import PhoneIcon from '$lib/images/icons/phone.svg';
@@ -6,19 +7,24 @@
     import { parseTime } from '$lib/data/booking.svelte';
 
     let adminData = createAdminData();
-    let { data } = $props();
+    let { data, ondelete } = $props();
 
     let collapse = $derived(adminData.listDisplay === true)
 
     const viewDetail = () => {
-        // adminData.appointment = data;
         window.location.href = `/admin/appointment?id=${data.id}`;
+    };
+
+    const deleteAppointment = () => {
+        if (confirm('Delete this appointment?') === false) { return; }
+
+        ondelete();
     };
 </script>
 
 <div class="tile">
     <div class="header">
-        <h3><span class="bold">{data ? parseTime(data.time) : ''}</span> - {data?.service?.name}</h3>
+        <h3><span class="bold">{data ? parseTime(data.time) : ''}</span> - {data?.sid?.name}</h3>
     </div>
     <div class="contents">
         <!-- <div class="col"> -->
@@ -31,14 +37,14 @@
                 { hidden: collapse === true }
             ]}>
                 <img src={EmailIcon}>
-                <span class="name">{data?.email}</span>
+                <span class="name">{data?.em}</span>
             </div>
             <div class={[
                 "row",
                 { hidden: collapse === true }
             ]}>
                 <img src={PhoneIcon}>
-                <span class="name">{data?.phone}</span>
+                <span class="name">{data?.ph}</span>
             </div>
             <!-- <div class="row">
                 <img src={ClockIcon}>
@@ -51,10 +57,10 @@
         <!-- </div> -->
     </div>
 
-    <div class="actions">
-        <button class="cta" onclick={viewDetail}>Edit</button>
-        <button class="delete">Delete</button>
-    </div>
+    <!-- <div class="actions">
+        <button class="cta" onclick={viewDetail}>Confirm</button>
+        <button class="delete" onclick={deleteAppointment}>Delete</button>
+    </div> -->
 </div>
 
 <style>

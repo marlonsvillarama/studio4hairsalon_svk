@@ -2,18 +2,34 @@
     // @ts-nocheck
     
         import { onMount } from 'svelte';
-        import { createBookingData } from '$lib/data/booking.svelte';
+        import { createAdminData } from '$lib/data/admin.svelte';
+        import { parseDate } from '$lib/data/booking.svelte';
         import CalendarIcon from '$lib/images/icons/calendar.svg';
         import AdminCalendar from './AdminCalendar.svelte';
     
+        const adminData = createAdminData();
         let { ondateselect } = $props();
+        let hideCalendar = $state(true);
+        let dateText = $derived.by(() => {
+            console.log('dataText derived dt', adminData.selectedDate);
+            return adminData.selectedDate ?
+                adminData.selectedDate.toLocaleDateString('en-NZ', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : '';
+        });
         
         const selectDate = () => {
-            console.log('selectDate from AdminDatePicker')
+            console.log('selectDate from AdminDatePicker');
+            hideCalendar = true;
+            ondateselect();
         };
 
         const toggleCalendar = () => {
-            console.log('toggleCalendar from AdminDatePicker')
+            console.log('toggleCalendar from AdminDatePicker');
+            hideCalendar = !hideCalendar;
         };
     </script>
     
@@ -21,11 +37,14 @@
         <div class="fieldset">
             <div class="select" id="dateSelect">
                 <button class="select-button" type="button" onclick={toggleCalendar}>
-                    <span class="selected-value">Wednesday, 29 September 2025</span>
+                    <span class="selected-value">{dateText}</span>
                     <img src={CalendarIcon} alt="Pick a date">
                 </button>
-                <div class="calendar hidden">
-                    <AdminCalendar ondateclick={selectDate} />
+                <div class={[
+                    "calendar",
+                    { hidden: hideCalendar === true }
+                ]}>
+                    <AdminCalendar ondateselect={selectDate} />
                 </div>
             </div>
         </div>
@@ -89,11 +108,11 @@
             position: absolute;
             top: 100%;
             left: 0;
-            width: 25rem;
+            width: 100%;
             background-color: white;
             /* border: 1px solid var(--color-accent); */
-            border-radius: 0.5rem;
-            margin: 0.5rem 0 0;
+            border-radius: 0.25rem;
+            margin: 0.125rem 0 0;
             box-shadow: var(--button-shadow);
             z-index: 9999;
         }

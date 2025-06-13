@@ -5,12 +5,12 @@
     import AppointmentDetails from '../../../components/AppointmentDetails.svelte';
     import { createAdminData } from '$lib/data/admin.svelte';
 
-    let adminData = createAdminData();
+    // let adminData = createAdminData();
     let { data } = $props();
     console.log('appointment data', data);
 
     const backToList = () => {
-        adminData.clear();
+        // adminData.clear();
         window.location.href = '/admin';
     };
 </script>
@@ -35,7 +35,7 @@
 
     <section id="detail">
         <div class="wrapper">
-            <AppointmentDetails data={data.appointment} />
+            <AppointmentDetails {data} />
         </div>
     </section>
 

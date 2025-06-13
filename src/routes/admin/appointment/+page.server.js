@@ -1,11 +1,17 @@
 // @ts-nocheck
 /** @type {import('./$types').PageLoad} */
 
-import { appointments } from '$lib/data/appointments.svelte';
+import { API_URL } from '$lib/data/api.svelte';
+import { createAdminData } from '$lib/data/admin.svelte';
+// import { appointments } from '$lib/data/appointments.svelte';
 
-export const load = ({ url }) => {
+const adminData = createAdminData();
+
+export const load = async ({ url }) => {
 	let id = url.searchParams.get('id');
-    let appointment = appointments.find(d => d.id === id);
+	let apiResult = await fetch(`${API_URL}/${id}`);
+	let appointment = await apiResult.json();
+	console.log('page.server appointment', appointment);
     return {
 		appointment
 	};
