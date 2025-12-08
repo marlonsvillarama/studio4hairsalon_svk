@@ -33,6 +33,7 @@
         section {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
+            column-gap: 3rem;
             gap: 1rem;
         }
     }

@@ -53,7 +53,7 @@
         /* justify-content: space-between; */
         display: none;
         align-items: center;
-        font-size: var(--fs-sm);
+        font-size: var(--fs-md);
     }
     .menu.small {
         width: 92%;
@@ -117,7 +117,7 @@
         background-color: rgba(239, 191, 4, 0.75);
         border-radius: 0.25rem;
         color: white;
-        font-size: var(--fs-xs);
+        font-size: var(--fs-sm);
         transition: all 100ms ease-in-out;
     }
     .menu .cta:hover {
@@ -127,7 +127,7 @@
     }
     @media (min-width: 64rem) {
         .menu .cta {
-            font-size: var(--fs-sm);
+            font-size: var(--fs-md);
             padding: 0.75rem 2.5rem;
             margin-left: 2rem;
         }

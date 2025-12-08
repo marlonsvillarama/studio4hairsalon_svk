@@ -67,6 +67,7 @@
             },
             body: JSON.stringify({
                 ...bookingData.data,
+                test: true,
                 id: (new Date()).getTime().toString(),
                 service: servicesData.getServiceById(bookingData.service)
             })
@@ -78,6 +79,7 @@
 
         submitted = true;
         success = jsonResponse.ok;
+        return;
         if (success && jsonResponse.id) {
             window.location.href = `/confirm?id=${jsonResponse.id}`;
         }

@@ -3,7 +3,11 @@
 </script>
 
 <section class="wrapper" id="{data.link}">
-    <img src={data.image} alt={data.name}>
+    {#if data.image}
+        <img src={data.image} alt={data.name}>
+    {:else}
+        <div class="logo">Studio 4</div>
+    {/if}
     <div class="list">
         <h3>{data.name}</h3>
         {#each data.services as item}
@@ -62,8 +66,8 @@
         /* justify-content: space-between; */
         /* align-items: center; */
         gap: 0.5rem;
-        font-size: var(--fs-xs);
-        font-weight: 200;
+        font-size: var(--fs-sm);
+        font-weight: 400;
     }
     @media (min-width: 30rem) {
         .item {
@@ -115,7 +119,7 @@
     }
 
     .title {
-        font-weight: 500;
+        font-size: var(--fs-sm);
     }
 
     .item a {
@@ -124,7 +128,8 @@
         background-color: var(--color-bg-btn);
         border-radius: 0.25rem;
         cursor: pointer;
-        font-size: var(--fs-xs);
+        font-size: var(--fs-sm);
+        font-weight: 500;
         text-align: center;
         transition: all 150ms ease-in-out;
     }

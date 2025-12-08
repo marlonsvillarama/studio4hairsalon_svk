@@ -133,7 +133,8 @@
         class={[
             "date",
             { 
-                outside: options.active === false,
+                outside: options.active === false ||
+                    [ '20251212', '20251225', '20251226', '20260101', '20260102' ].indexOf(unparseDate(options.date)) >= 0,
                 selected: unparseDate(bookingData.date) === unparseDate(options.date)
             }
         ]}

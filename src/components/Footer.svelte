@@ -41,7 +41,7 @@
     footer {
         background-color: var(--color-bg-header);
         padding: 2rem 0 4rem;
-        font-size: var(--fs-xs);
+        font-size: var(--fs-md);
         font-weight: 200;
         color: white;
     }

@@ -76,13 +76,13 @@
     .profile p {
         line-height: 2rem;
         margin-bottom: 2.5rem;
-        font-size: var(--fs-sm);
+        font-size: var(--fs-md);
         font-weight: 200;
         letter-spacing: 0.5px;
     }
     @media (min-width: 64rem) {
         .profile p {
-            font-size: var(--fs-sm);
+            font-size: var(--fs-md);
         }
     }
     

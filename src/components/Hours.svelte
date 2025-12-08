@@ -31,7 +31,7 @@
 
         <div class="row">
             <img src={HouseIcon} alt="Address">
-            <p class="address"><span>7 George Street</span><span>Palmerston North</span></p>
+            <p class="address"><span>7 George Street, Palmerston North</span></p>
         </div>
 
         <div class="row">
@@ -141,7 +141,7 @@
         align-items: flex-start;
         gap: 2rem;
         color: var(--color-grey-dark-03-rgb);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-md);
         font-weight: 300;
     }
     .row:not(:last-child) {

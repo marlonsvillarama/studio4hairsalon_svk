@@ -20,6 +20,9 @@
         transition: all 150ms ease-in-out;
     }
     .container:hover {
+        transform: translateY(-1px);
+    }
+    .container:hover > img {
         opacity: 1;
         box-shadow: var(--box-shadow);
         /* transform: translateY(-2px); */
