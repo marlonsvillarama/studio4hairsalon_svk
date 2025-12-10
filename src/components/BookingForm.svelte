@@ -79,7 +79,7 @@
 
         submitted = true;
         success = jsonResponse.ok;
-        return;
+        // return;
         if (success && jsonResponse.id) {
             window.location.href = `/confirm?id=${jsonResponse.id}`;
         }
