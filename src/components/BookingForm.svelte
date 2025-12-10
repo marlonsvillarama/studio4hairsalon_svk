@@ -67,11 +67,11 @@
             },
             body: JSON.stringify({
                 ...bookingData.data,
-                test: true,
                 id: (new Date()).getTime().toString(),
                 service: servicesData.getServiceById(bookingData.service)
             })
         });
+                // test: true,
         jsonResponse = await jsonResponse.json();
 
         // let jsonResponse = { ok: true, id: 12345678890 };
