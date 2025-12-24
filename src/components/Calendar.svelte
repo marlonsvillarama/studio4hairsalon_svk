@@ -126,6 +126,8 @@
         bookingData.date = parseDate(e.target.dataset.date);
         // ondateclick();
     };
+
+    let blockedDates = [ '20251222', '20251223', '20251224', '20251225', '20251226', '20251227', '20260101', '20260102' ];
 </script>
 
 {#snippet calendarDay(options)}
@@ -133,11 +135,11 @@
         class={[
             "date",
             { 
-                outside: options.active === false ||
-                    [ '20251222', '20251223', '20251224', '20251225', '20251226', '20260101', '20260102' ].indexOf(unparseDate(options.date)) >= 0,
+                outside: options.active === false || blockedDates.indexOf(unparseDate(options.date)) >= 0,
                 selected: unparseDate(bookingData.date) === unparseDate(options.date)
             }
         ]}
+        disabled={options.active === false || blockedDates.indexOf(unparseDate(options.date)) >= 0}
         data-date={unparseDate(options.date)}
         onclick={(options) => selectDate(options)}
     >
