@@ -127,7 +127,7 @@
         // ondateclick();
     };
 
-    let blockedDates = [ '20251222', '20251223', '20251224', '20251225', '20251226', '20251227', '20260101', '20260102' ];
+    let blockedDates = [ '20260106', '20260110' ];
 </script>
 
 {#snippet calendarDay(options)}
