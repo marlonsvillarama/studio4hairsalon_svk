@@ -4,7 +4,7 @@
 
 <section class="wrapper" id="{data.link}">
     {#if data.image}
-        <img src={data.image} alt={data.name}>
+        <img src="/images/{data.image}" alt={data.name}>
     {:else}
         <div class="logo">Studio 4</div>
     {/if}

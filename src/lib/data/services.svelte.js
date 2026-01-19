@@ -63,53 +63,53 @@ const allServices = $state([
             { id: 21, name: 'Eyeliner tattoo', description: 'Eyeliner tattoo description...', duration: 120, price: 150 }
         ]
     },
-    {
+    /* {
         id: 5,
         link: 'manicure',
         name: 'Manicure',
         description: 'Manicure description goes here...',
-        /* image: Makeup, */
+        /* image: Makeup, *
         services: [
             { id: 22, name: 'Cleaning', description: 'Cleaning description...', duration: 30, price: 30 },
             { id: 23, name: 'Cleaning with polish', description: 'Cleaning with polish description...', duration: 45, price: 35 },
             { id: 24, name: 'Gel manicure', description: 'Gel manicure description...', duration: 60, price: 45 }
         ]
-    },
-    {
+    }, */
+    /* {
         id: 6,
         link: 'pedicure',
         name: 'Pedicure',
         description: 'Pedicure description goes here...',
-        /* image: Makeup, */
+        /* image: Makeup, *
         services: [
             { id: 25, name: 'Cleaning', description: 'Cleaning description...', duration: 30, price: 30 },
             { id: 26, name: 'Cleaning with polish', description: 'Cleaning with polish description...', duration: 45, price: 40 },
             { id: 27, name: 'Soak and foot massage', description: 'Cleaning with soak and foot massage description...', duration: '', price: 20 },
             { id: 28, name: 'Foot spa with pedicure', description: 'Gel manicure description...', duration: 90, price: 65 }
         ]
-    },
-    {
+    }, */
+    /* {
         id: 7,
         link: 'eyebrows',
         name: 'Eyebrows',
         description: 'Eyebrows description goes here...',
-        /* image: Makeup, */
+        /* image: Makeup, *
         services: [
             { id: 29, name: 'Eyebrow shape with tint', description: 'Eyebrow shape with tint description...', duration: 30, price: 30 },
             { id: 30, name: 'Eyebrow trio', description: 'Eyebrow trio description...', duration: 45, price: 45 },
             { id: 31, name: 'Lush tint', description: 'Lush tint description...', duration: 20, price: 20 }
         ]
-    },
-    {
+    }, */
+    /* {
         id: 8,
         link: 'facial',
         name: 'Facial',
         description: 'Facial description goes here...',
-        /* image: Makeup, */
+        /* image: Makeup, *
         services: [
             { id: 32, name: 'Basic facial', description: 'Basic facial description...', duration: 60, price: 55 }
         ]
-    }
+    } */
 ]);
 
 export const createServicesData = () => {
