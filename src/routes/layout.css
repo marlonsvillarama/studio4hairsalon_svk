@@ -1,1 +1,21 @@
 @import 'tailwindcss';
+:root {
+    --font-logo: 'Corinthia', cursive;
+    --font-default: 'Inter', -system-ui, sans-serif;
+    --font-serif: 'Merriweather', serif;
+    /* --font-default: 'Noto Sans', -system-ui, sans-serif; */
+
+    --color-accent-50: #fefde8;
+    --color-accent-100: #fffcc2;
+    --color-accent-200: #fff588;
+    --color-accent-300: #ffe843;
+    --color-accent-400: #fed811;
+    --color-accent-500: #EFBF04;
+    --color-accent-600: #ce9300;
+    --color-accent-700: #a46804;
+    --color-accent-800: #87520c;
+    --color-off-white: #fafaf9;
+}
+body {
+    font-family: var(--font-default);
+}

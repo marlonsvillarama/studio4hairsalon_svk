@@ -1,3 +1,15 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
-<p>fsdfsdf</p>
+<script>
+    import Hero from "$lib/components/hero.svelte";
+    import ServicesSection from "$lib/components/services-section.svelte";
+    import JohnSection from "$lib/components/john-section.svelte";
+    // import GallerySection from "$lib/components/gallery-section.svelte";
+    import ReviewsSection from "$lib/components/reviews-section.svelte";
+    import Footer from "$lib/components/footer.svelte";
+</script>
+
+<Hero />
+<ServicesSection />
+<JohnSection />
+<!-- <GallerySection /> -->
+<ReviewsSection />
+<Footer />
