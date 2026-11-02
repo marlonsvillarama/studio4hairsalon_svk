@@ -66,7 +66,7 @@
     </div>
 
     {#if activeService}
-        <p class="help">{activeService.description}</p>
+        <!-- <p class="help">{activeService.description}</p> -->
         
         <div class="price">
             <span>About {activeService.duration} minutes</span>
