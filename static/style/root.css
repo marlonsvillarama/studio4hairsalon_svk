@@ -1,0 +1,98 @@
+:root {
+    --white: #fff;
+    --off-white: #f5f1e8;
+
+    --lightest: #FCFCFC;
+    --lighter: #F6F6F6;
+    --light: #EDEDED;
+    --semi-light: #E8E8E8;
+
+    --charcoal: #343333;
+    --darkest: #1B1B1B;
+    --darker: #2E2E30;
+    --dark: #59595B;
+    --semi-dark: #a3a3a3;
+
+    --accent-very-light: #f8f5ee;
+    --accent-lightest: #eee5d3;
+    --accent-lighter: #decbaa;
+    --accent-light: #caaa7a;
+    --accent: #BA8D55;
+    --accent-bg-pale: #BA8D5520;
+    --accent-bg-lightest: #BA8D5540;
+    --accent-bg-lighter: #BA8D5560;
+    --accent-bg-light: #BA8D5880;
+    --accent-bg-semi-light: #BA8D58AA;
+    --accent-bg-semi-opaque: #BA8D58CC;
+    --accent-bg: #BA8D55DC;
+    --accent-dark: #ab7a47;
+    --accent-darker: #93613b;
+    --accent-darkest: #764a32;
+    --accent-very-dark: #643e2f;
+    --dark-bg-pale: #1B1B1B20;
+    --dark-bg-lightest: #1B1B1B40;
+    --dark-bg-lighter: #1B1B1B60;
+    --dark-bg-light: #1B1B1B80;
+    --dark-bg-semi-light: #1B1B1BAA;
+    --dark-bg-semi-opaque: #1B1B1BCC;
+
+    --font-logo: 'Corinthia', cursive;
+    --font-default: 'Inter', -system-ui, sans-serif;
+    --font-serif: 'Merriweather', serif;
+    /* --font-default: 'Noto Sans', -system-ui, sans-serif; */
+
+    --color-accent-50: #fefde8;
+    --color-accent-100: #fffcc2;
+    --color-accent-200: #fff588;
+    --color-accent-300: #ffe843;
+    --color-accent-400: #fed811;
+    --color-accent-500: #EFBF04;
+    --color-accent-600: #ce9300;
+    --color-accent-700: #a46804;
+    --color-accent-800: #87520c;
+    --color-off-white: #fafaf9;
+    
+    /* --font-default: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-serif: "Playfair Display", "Bodoni Moda", serif; */
+
+    /* --shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px; */
+    /* --shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px; */
+    /* --shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; */
+    --shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--white);
+    color: var(--charcoal);
+    font-family: var(--font-default);
+    font-size: 1rem;
+    margin: 0;
+	/* -webkit-font-smoothing: antialiased; */
+}
+
+.container {
+    width: min(120rem, 90%);
+    margin: 0 auto;
+    /* border: 1px solid red; */
+}
+
+.reveal-section {
+    opacity: 0;
+    transform: translateY(80px);
+    transition: opacity 500ms ease-out, transform 500ms ease-out;
+}
+.reveal-section.reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.staggered {
+    transition-delay: 200ms;
+}

@@ -15,6 +15,43 @@
     --color-accent-700: #a46804;
     --color-accent-800: #87520c;
     --color-off-white: #fafaf9;
+    
+    --white: #fff;
+    --off-white: #f5f1e8;
+
+    --lightest: #FCFCFC;
+    --lighter: #F6F6F6;
+    --light: #EDEDED;
+    --semi-light: #E8E8E8;
+
+    --charcoal: #343333;
+    --darkest: #1B1B1B;
+    --darker: #2E2E30;
+    --dark: #59595B;
+    --semi-dark: #a3a3a3;
+
+    --accent-very-light: #f8f5ee;
+    --accent-lightest: #eee5d3;
+    --accent-lighter: #decbaa;
+    --accent-light: #caaa7a;
+    --accent: #BA8D55;
+    --accent-bg-pale: #BA8D5520;
+    --accent-bg-lightest: #BA8D5540;
+    --accent-bg-lighter: #BA8D5560;
+    --accent-bg-light: #BA8D5880;
+    --accent-bg-semi-light: #BA8D58AA;
+    --accent-bg-semi-opaque: #BA8D58CC;
+    --accent-bg: #BA8D55DC;
+    --accent-dark: #ab7a47;
+    --accent-darker: #93613b;
+    --accent-darkest: #764a32;
+    --accent-very-dark: #643e2f;
+    --dark-bg-pale: #1B1B1B20;
+    --dark-bg-lightest: #1B1B1B40;
+    --dark-bg-lighter: #1B1B1B60;
+    --dark-bg-light: #1B1B1B80;
+    --dark-bg-semi-light: #1B1B1BAA;
+    --dark-bg-semi-opaque: #1B1B1BCC;
 }
 body {
     font-family: var(--font-default);

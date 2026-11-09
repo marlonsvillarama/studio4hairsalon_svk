@@ -23,7 +23,7 @@
 <section>
     <div class="wrapper">
         <div class="header">
-            <span>Our Reviews</span>
+            <!-- <span>Our Reviews</span> -->
             <h2>What Our Clients Say</h2>
         </div>
         <div class="content">
@@ -37,18 +37,26 @@
 <style>
     section {
         /* border: 1px solid green; */
-        padding: 4rem 0 8rem;
-        height: 40rem;
+        padding: 4rem 0 6rem;
+        /* height: 40rem; */
         /* background-color: var(--color-accent-800); */
-        background-image: url(/images/pattern-001.svg);
+        /* background-image: url(/images/pattern-001.svg); */
+        background-color: var(--color-accent-50);
     }
     .wrapper {
         /* background-color: var(--color-off-white); */
-        width: min(95%, 110rem);
+        width: min(90%, 110rem);
         margin: 0 auto;
         display: flex;
         flex-direction: column;
         gap: 2rem;
+    }
+    .wrapper > .header {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+        gap: 0.5rem;
     }
     .wrapper > .header > span {
         font-size: 0.875rem;
@@ -56,14 +64,36 @@
         opacity: 0.6;
         text-transform: uppercase;
     }
-    .wrapper > .header > h2 {
+    /* .wrapper > .header > h2 {
         font-size: 3.5rem;
-        /* font-family: var; */
         line-height: 3.5rem;
+    } */
+    .wrapper > .header > h2 {
+        font-size: clamp(2rem, 5vw, 2rem);
+        font-family: var(--font-serif);
+        line-height: clamp(2.5rem, 5vw, 2.5rem);
+        /* border: 1px solid red; */
     }
-    .wrapper > .content {
+    /* .wrapper > .content {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
+    } */
+    .wrapper > .content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
     }
+    @media (min-width: 40rem) {
+        .wrapper > .content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    /* @media (min-width: 80rem) {
+        .wrapper > .content {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+        }
+    } */
 </style>

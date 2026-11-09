@@ -1,89 +1,103 @@
-<section>
+<script>
+    import { reveal } from "$lib/reveal";
+</script>
+
+<section class="reveal-section" use:reveal>
     <div class="wrapper">
         <div class="hours">
             <h2>Visit Us</h2>
             <div class="row">
-                <i class="ph-thin ph-map-pin"></i>
+                <i class="ph ph-map-pin"></i>
                 <div class="block">
                     <span class="title">Location</span>
                     <p>7 George Street<br/>Palmerston North</p>
                 </div>
             </div>
             <div class="row">
-                <i class="ph-thin ph-phone"></i>
+                <i class="ph ph-phone"></i>
                 <div class="block">
                     <span class="title">Phone Number</span>
                     <p>(06) 353-5678</p>
                 </div>
             </div>
             <div class="row">
-                <i class="ph-thin ph-device-mobile"></i>
+                <i class="ph ph-device-mobile"></i>
                 <div class="block">
                     <span class="title">Mobile Number</span>
                     <p>(022) 188-5240</p>
                 </div>
             </div>
             <div class="row">
-                <i class="ph-thin ph-calendar-dots"></i>
+                <i class="ph ph-calendar-dots"></i>
                 <div class="block">
                     <span class="title">Days Open</span>
                     <p>Mondays to Saturdays</p>
                 </div>
             </div>
             <div class="row">
-                <i class="ph-thin ph-clock"></i>
+                <i class="ph ph-clock"></i>
                 <div class="block">
                     <span class="title">Business Hours</span>
                     <p>9:30am to 5:00pm</p>
                 </div>
             </div>
             <div class="links">
-                <a href="#" class="book-link" title="Book Now">Book Now</a>
+                <a href="/book" class="book-link" title="Book Now">
+                    Book Now
+                    <!-- <i class="ph ph-arrow-circle-right"></i> -->
+                </a>
             </div>
         </div>
-        <div></div>
+        <!-- <div></div> -->
+        <div class="hours-image"></div>
     </div>
-    <div class="hours-image"></div>
 </section>
 
 <style>
     section {
-        background-color: var(--color-accent-50);
+        /* background-color: var(--color-accent-50); */
         /* border: 2px solid red; */
-        position: relative;
+        /* position: relative; */
+        padding: 4rem 0 6rem;
     }
     .wrapper {
         /* border: 1px solid green; */
-        height: 42rem;
-        width: min(95%, 70rem);
+        /* height: 42rem; */
+        width: min(90%, 110rem);
         margin: 0 auto;
         /* display: flex; */
-        /* gap: 3rem; */
-        /* align-items: flex-start; */
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        gap: 5rem;
+        display: flex;
+        flex-direction: column;
+    }
+    @media (min-width: 60rem) {
+        .wrapper {
+            display: grid;
+            align-items: center;
+            grid-template-columns: 1fr 1fr;
+        }
     }
     .hours-image {
-        position: absolute;
+        /* position: absolute; */
         /* border: 2px solid red; */
-        top: 0;
-        left: 50%;
-        width: 50%;
-        height: 42rem;
+        /* top: 0; */
+        /* left: 50%; */
+        width: 100%;
+        height: 35rem;
         background-image: url(/images/in-action.jpg);
         background-size: cover;
-        background-position: center 0;
+        /* background-position: center; */
         /* scale: 0.8; */
     }
     .hours {
-        padding: 4rem 4rem 8rem 0;
+        /* padding: 4rem 4rem 6rem 0; */
         /* padding: 4rem 0 8rem; */
         /* border: 1px solid red; */
     }
     .hours > h2 {
-        color: var(--color-amber-600);
+        color: var(--color-accent-600);
         font-size: 2.5rem;
-        font-weight: 300;
+        font-weight: 500;
         /* padding-bottom: 0.25rem; */
         /* border-bottom: 1px solid #1d1d1d; */
         display: inline-block;
@@ -102,7 +116,7 @@
         border-bottom: 1px solid var(--color-accent-600);
     }
     .hours > .row > i {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
     .hours > .row > .block {
         display: flex;
@@ -114,8 +128,15 @@
         gap: 0;
     }
     .hours > .row > .block > .title {
-        font-weight: 600;
+        opacity: 0;
         /* opacity: 0.4; */
+    }
+    @media (min-width: 40rem) {
+        .hours > .row > .block > .title {
+            opacity: 1;
+            font-weight: 600;
+            /* opacity: 0.4; */
+        }
     }
     .hours > .row > .block > p {
         line-height: 1.25rem;
@@ -123,16 +144,21 @@
         text-align: end;
     }
     .hours > .links {
-        padding-top: 1.5rem;
+        padding-top: 1rem;
+        text-align: center;
     }
     .book-link {
-        background-color: var(--color-accent-500);
+        /* background-color: var(--color-accent-500); */
         /* border-radius: 0.25rem; */
-        color: var(--color-off-white);
+        /* color: var(--color-off-white); */
+        background-color: var(--color-accent-400);
+        border: 1px solid var(--color-accent-400);
+        color: var(--darkest);
+        font-weight: 600;
         padding: 0.75rem 2.5rem;
         transition: background-color 150ms ease;
     }
     .book-link:hover {
-        background-color: var(--color-accent-600);
+        background-color: var(--color-accent-500);
     }
 </style>

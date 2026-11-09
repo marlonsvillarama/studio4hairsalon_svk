@@ -25,13 +25,13 @@
         display: flex;
         flex-direction: column;
     }
-    .review > .bubble{
+    .review > .bubble {
         background-color: var(--color-off-white);
         position: relative;
         /* border-radius: 0.25rem; */
         box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
         padding: 1.25rem 1.5rem;
-        height: 20rem;
+        height: 15rem;
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -81,5 +81,10 @@
         justify-content: center;
         font-size: 1.25rem;
         color: var(--color-off-white);
+    }
+    @media (min-width: 80rem) {
+        .review > .bubble {
+            height: 12rem;
+        }
     }
 </style>
