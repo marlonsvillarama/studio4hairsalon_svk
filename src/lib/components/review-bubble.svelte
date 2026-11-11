@@ -1,8 +1,9 @@
 <script>
+    import { reveal } from "$lib/reveal";
     let { data } = $props();
 </script>
 
-<div class="review">
+<section class="review reveal-section from-bottom staggered" use:reveal>
     <div class="bubble">
         <div class="stars">
             {#each { length: 5} as _}
@@ -18,7 +19,7 @@
         <div class="avatar">{data.author[0]}</div>
         <div class="name">{data.author}</div>
     </div>
-</div>
+</section>
 
 <style>
     .review {

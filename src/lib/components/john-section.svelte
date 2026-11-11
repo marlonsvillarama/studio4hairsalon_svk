@@ -1,8 +1,12 @@
-<script></script>
+<script>
+    import { reveal } from "$lib/reveal";
+    import { scrollTo } from "$lib/scroll";
+    import ActionButton from "./shared/action-button.svelte";
+</script>
 
-<section>
+<section id="john-section">
     <div class="wrapper">
-        <div class="header">
+        <div class="header reveal-section from-bottom staggered" use:reveal>
             <h2>John Fernandez</h2>
             <p>
                 A seasoned professional with over 20 years of international experience, John brings world-class expertise and creativity to every client.
@@ -13,8 +17,11 @@
             <p>
                 His extensive background combines diverse techniques, global trends, and a passion for excellence to ensure you receive a look tailored specifically to your unique style.
             </p>
+            <ActionButton label="Read Reviews" icon="arrow-down"
+                onclick={() => scrollTo('reviews-section')}
+            />
         </div>
-        <div class="john-img"></div>
+        <div class="john-img reveal-section from-bottom staggered" use:reveal></div>
         <!-- <div class="john-content">
             <div class="john">John</div>
             <div class="fernandez">Fernandez</div>
@@ -32,10 +39,11 @@
 </section>
 
 <style>
-    section {
+    #john-section {
         /* background-color: var(--color-accent-50); */
         /* border: 1px solid green; */
         padding: 4rem 0 6rem;
+        scroll-margin-top: 2em;
         /* height: 700px; */
         /* background-image: url(/images/pattern-001.svg); */
         /* border: 2px solid red; */
@@ -60,7 +68,7 @@
     }
     .wrapper > .header > h2 {
         text-align: center;
-        font: 600 3rem var(--font-serif);
+        font: 600 2.5rem var(--font-serif);
     }
     .wrapper > .header > p {
         /* border: 1px solid red; */

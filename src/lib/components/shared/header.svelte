@@ -1,4 +1,5 @@
 <script>
+    import { page } from "$app/state";
     import Logo from "./logo.svelte";
     import Nav from "./nav.svelte";
 
@@ -7,10 +8,11 @@
 
 <svelte:window bind:scrollY />
 
-<header class:scrolled={scrollY > 50}>
+<header class:scrolled={scrollY > 50 || page.url.pathname.length > 1}>
+<!-- <header class:scrolled={scrollY > 50}> -->
     <div class="container">
         <Logo />
-        <Nav />
+        <!-- <Nav /> -->
     </div>
 </header>
 
@@ -35,10 +37,11 @@
         margin: 0 auto;
         width: 90%;
         max-width: 110rem;
-        padding: 1rem 0;
+        padding: 1.5rem 0;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
+        /* justify-content: space-between; */
         transition: padding 300ms ease;
     }
     @media (min-width: 40rem) {

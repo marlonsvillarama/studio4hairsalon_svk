@@ -69,12 +69,17 @@
     padding: 0;
 }
 
+html {
+    overflow-x: clip;
+}
+
 body {
     background-color: var(--white);
     color: var(--charcoal);
     font-family: var(--font-default);
     font-size: 1rem;
     margin: 0;
+    overflow-x: clip;
 	/* -webkit-font-smoothing: antialiased; */
 }
 
@@ -86,8 +91,19 @@ body {
 
 .reveal-section {
     opacity: 0;
-    transform: translateY(80px);
     transition: opacity 500ms ease-out, transform 500ms ease-out;
+}
+.reveal-section.from-top {
+    transform: translateY(-80px);
+}
+.reveal-section.from-bottom {
+    transform: translateY(80px);
+}
+.reveal-section.from-left {
+    transform: translateX(-80px);
+}
+.reveal-section.from-right {
+    transform: translateX(80px);
 }
 .reveal-section.reveal-visible {
     opacity: 1;

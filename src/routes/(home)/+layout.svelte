@@ -1,5 +1,5 @@
 <script>
-	import './layout.css';
+	import '../layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/shared/header.svelte';
 	import Footer from '$lib/components/shared/footer.svelte';
@@ -13,4 +13,4 @@
 
 {@render children()}
 
-<!-- <Footer /> -->
+<Footer />

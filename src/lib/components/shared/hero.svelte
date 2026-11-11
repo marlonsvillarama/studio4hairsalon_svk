@@ -1,5 +1,13 @@
 <script>
+    import { reveal } from "$lib/reveal";
+    import { scrollTo } from "$lib/scroll";
     import Logo from "./logo.svelte";
+    import ActionButton from "./action-button.svelte";
+
+    const scrollToServices = () => {
+        let servicesSection = document.getElementById('services-section');
+        servicesSection.scrollIntoView({ behavior: 'smooth' });
+    };
 </script>
 
 <div class="hero">
@@ -16,8 +24,12 @@
             </ul> -->
         <!-- </header> -->
         <div class="slogan">
-            <h1>Where <span class="artistry">artistry</span> meets precision</h1>
-            <p>Experience hair care like never before right in the heart of Palmerston North.</p>
+            <h1>
+                Where <span class="artistry">artistry</span> meets precision
+            </h1>
+            <p>
+                Experience hair care like never before right in the heart of Palmerston North.
+            </p>
             <!-- <div class="contact-info">
                 <div class="row">
                     <i class="ph-thin ph-phone"></i>
@@ -28,17 +40,6 @@
                     <span>(022) 188-5240</span>
                 </div>
             </div> -->
-            <div class="actions">
-                <a href="/book" title="Book Now" class="cta main">
-                    Book Now
-                    <i class="ph ph-arrow-circle-right"></i>
-                </a>
-                <a href="/book" title="Book Now" class="cta">
-                    Our Services
-                    <!-- <i class="ph ph-arrow-circle-right"></i> -->
-                </a>
-            </div>
-
             <div class="rating">
                 <p>Great service. Great ambience. A salon that will surely put a smile on your face.</p>
                 <div class="stars">
@@ -49,7 +50,20 @@
                 </div>
             </div>
         </div>
-        <div class="proof">
+
+        <div class="actions">
+            <ActionButton label="Start Here" icon="arrow-down"
+                onclick={() => scrollTo('services-section')}
+            />
+            <!-- <a href="/book" title="Book Now" class="cta main">
+                Book Now
+                <i class="ph ph-arrow-circle-right"></i>
+            </a> -->
+            <!-- <a href="/book" title="Book Now" class="cta">
+                Our Services
+            </a> -->
+        </div>
+        <!-- <div class="proof"> -->
             <!-- <div class="rating">
                 <p>Great service. Great ambience. A salon that will surely put a smile on your face.</p>
                 <div class="stars">
@@ -59,7 +73,7 @@
                     <span class="reviewer">Aileen C.</span>
                 </div>
             </div> -->
-        </div>
+        <!-- </div> -->
     </div>
 </div>
 
@@ -106,11 +120,14 @@
         width: 90%;
         max-width: 110rem;
         margin: 0 auto;
-        padding: 2rem 0;
+        padding: 4rem 0;
         /* border: 1px solid red; */
         /* padding: 1rem 3rem; */
         display: flex;
         flex-direction: column;
+        align-items: center;
+        /* justify-content: center; */
+        gap: 2.5rem;
         justify-content: space-between;
         /* transform: translateX(-50%) translateY(-50%); */
     }
@@ -148,8 +165,8 @@
         /* border: 1px solid red; */
         display: flex;
         flex-direction: column;
-        margin-top: 2rem;
-        /* gap: 0rem; */
+        /* margin-top: 2rem; */
+        /* gap: 2rem; */
         align-items: center;
     }
     .hero-content > .slogan > h1 {
@@ -174,7 +191,7 @@
         font-weight: 400;
         opacity: 0.8;
         text-align: center;
-        margin: 1.25rem 0;
+        margin-top: 1.25rem;
     }
     /* .contact-info {
         margin-bottom: 1rem;
@@ -189,7 +206,7 @@
     /* .contact-info > .row > i {
         font-size: 1.5rem;
     } */
-    .hero-content > .slogan > .actions {
+    .hero-content > .actions {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -197,34 +214,34 @@
         gap: 1rem;
     }
     @media (min-width: 40rem) {
-        .hero-content > .slogan > .actions {
+        .hero-content > .actions {
             flex-direction: row;
         }
     }
-    .hero-content > .slogan > .actions > .cta {
+    /* .hero-content > .slogan > .actions > .cta { */
         /* background-color: var(--color-accent-600); */
         /* border-radius: 0.25rem; */
         /* background-color: var(--color-accent-400); */
-        border: 1px solid var(--color-accent-400);
+        /* border: 1px solid var(--color-accent-400);
         color: var(--white);
         cursor: pointer;
         font-weight: 600;
         padding: 0.75rem 2rem;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.5rem; */
         /* transition: padding-right 150ms ease; */
-        position: relative;
+        /* position: relative;
         transition: background-color 150ms ease-in-out, border-color 150ms ease-in-out;
-    }
-    .hero-content > .slogan > .actions > .cta.main {
-        background-color: var(--color-accent-400);
+    } */
+    /* .hero-content > .slogan > .actions > .cta.main {
+        background-color: var(--color-accent-400); */
         /* background: linear-gradient(120deg, var(--color-accent-600) 0%, var(--color-accent-400) 100%); */
-        border: 1px solid var(--color-accent-400);
+        /* border: 1px solid var(--color-accent-400);
         color: var(--darkest);
-    }
-    .hero-content > .slogan > .actions > .cta > i {
-        font-size: 1.5rem;
+    } */
+    /* .hero-content > .slogan > .actions > .cta > i {
+        font-size: 1.5rem; */
         /* content: '→'; */
         /* color: var(--white); */
         /* opacity: 0; */
@@ -236,29 +253,29 @@
         transition: opacity 0.3s ease, right 0.3s ease; */
         /* background-color: var(--color-accent-700); */
         /* border-left: 4px solid var(--color-accent-700); */
-    }
-    .hero-content > .slogan > .actions > .cta:hover {
+    /* } */
+    /* .hero-content > .slogan > .actions > .cta:hover {
         background-color: var(--accent-bg-pale);
         border-color: var(--color-accent-400);
-    }
-    .hero-content > .slogan > .actions > .cta.main:hover {
-        background-color: var(--color-accent-500);
+    } */
+    /* .hero-content > .slogan > .actions > .cta.main:hover {
+        background-color: var(--color-accent-500); */
         /* background: linear-gradient(120deg, var(--color-accent-600) 0%, var(--color-accent-500) 100%); */
         /* padding-right: 3.5rem; */
         /* display: block;
         opacity: 100; */
-    }
-    .hero-content > .slogan > .cta:hover::after {
+    /* } */
+    /* .hero-content > .slogan > .cta:hover::after {
         opacity: 1;
         right: 1.125rem;
-    }
+    } */
     .rating {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 0.25rem;
         text-align: center;
-        margin-top: 3rem;
+        margin-top: 2rem;
     }
     .rating > p {
         color: var(--color-off-white);

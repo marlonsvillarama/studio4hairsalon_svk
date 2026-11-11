@@ -16,9 +16,11 @@
 </script>
 
 <ul class="menu">
-    <li><a href="/services" title="Services">Services</a></li>
-    <li><a href="/gallery" title="Gallery">Gallery</a></li>
-    <li><a href="/reviews" title="Reviews">Reviews</a></li>
+    <!-- <li><a href="/services" title="Services">Services</a></li> -->
+    <!-- <li><a href="/gallery" title="Gallery">Gallery</a></li> -->
+    <!-- <li><a href="/reviews" title="Reviews">Reviews</a></li> -->
+    <li><a href="/book" title="Reviews">Login | Register</a></li>
+    <!-- <li><a href="/reviews" title="Reviews">Register</a></li> -->
 </ul>
 <button type="button" class="mobile-menu-btn" title="Menu" popovertarget="mobile-menu">
     <i class="ph ph-list"></i>
@@ -44,8 +46,11 @@
         >Reviews</a>
     <a href="/book" title="Book Now" class="book"
         data-sveltekit-reload
-        // class:active={page.url.pathname.startsWith('/book')}
         >Book Now</a>
+    <a href="/reviews" title="Login"
+        data-sveltekit-reload
+        class:active={page.url.pathname.startsWith('/reviews')}
+        >Login | Register</a>
 </div>
 
 <style>

@@ -1,13 +1,19 @@
-<section>
+<script>
+    import { reveal } from "$lib/reveal";
+    import { scrollTo } from "$lib/scroll";
+    import ActionButton from "./shared/action-button.svelte";
+</script>
+
+<section id="services-section">
     <div class="wrapper">
-        <div class="header">
+        <div class="header reveal-section from-bottom" use:reveal>
             <!-- <span>Our Services</span> -->
             <h2>What We Offer</h2>
             <p>
                 Studio 4 Hair Salon is your ultimate destination for exceptional hair care and styling in Palmerston North. We are dedicated to crafting looks that not only reflect your personality but also keep you on the cutting edge of fashion trends. Whether you're looking for a transformative haircut, vibrant coloring, or meticulous hair treatments, our personalized approach ensures you leave our salon looking and feeling your absolute best.
             </p>
         </div>
-        <div class="cards">
+        <div class="cards reveal-section from-bottom" use:reveal>
             <div class="card haircut">
                 <span class="title">Haircut</span>
             </div>
@@ -21,17 +27,24 @@
                 <span class="title">Other</span>
             </div>
         </div>
+        <div class="actions reveal-section from-bottom" use:reveal>
+            <!-- <ActionButton label="Book Your Appointment Now" link="/book" icon={true} /> -->
+            <ActionButton label="Meet John" icon="arrow-down"
+                onclick={() => scrollTo('john-section')}
+            />
+        </div>
     </div>
 </section>
 
 <style>
-    section {
+    #services-section {
         /* border: 1px solid green; */
         padding: 4rem 0 6rem;
         /* height: 40rem; */
         background-color: var(--color-accent-50);
         /* background-image: url(/images/pattern-001.svg); */
         /* border: 2px solid red; */
+        scroll-margin-top: 2em;
     }
     .wrapper {
         width: min(90%, 110rem);
@@ -55,12 +68,11 @@
         opacity: 0.8;
         width: min(90%, 40rem);
     }
-    .wrapper > .header > span {
+    /* .wrapper > .header > span {
         font-size: 0.875rem;
-        /* font-weight: 300; */
         opacity: 0.6;
         text-transform: uppercase;
-    }
+    } */
     .wrapper > .header > h2 {
         font-size: clamp(2rem, 5vw, 2rem);
         font-family: var(--font-serif);
@@ -184,4 +196,10 @@
             linear-gradient(to bottom, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.5) 90%),
             url(/images/makeup.jpg);
     } */
+    .actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2rem;
+    }
 </style>

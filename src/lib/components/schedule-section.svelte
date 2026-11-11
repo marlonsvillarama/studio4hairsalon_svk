@@ -1,64 +1,63 @@
 <script>
     import { reveal } from "$lib/reveal";
+  import ActionButton from "./shared/action-button.svelte";
 </script>
 
-<section class="reveal-section" use:reveal>
+<section id="visit-section">
     <div class="wrapper">
-        <div class="hours">
+        <div class="hours reveal-section from-left" use:reveal>
             <h2>Visit Us</h2>
-            <div class="row">
+            <div class="row reveal-section from-left staggered" use:reveal>
                 <i class="ph ph-map-pin"></i>
                 <div class="block">
                     <span class="title">Location</span>
                     <p>7 George Street<br/>Palmerston North</p>
                 </div>
             </div>
-            <div class="row">
+            <div class="row reveal-section from-left staggered" use:reveal>
                 <i class="ph ph-phone"></i>
                 <div class="block">
                     <span class="title">Phone Number</span>
                     <p>(06) 353-5678</p>
                 </div>
             </div>
-            <div class="row">
+            <div class="row reveal-section from-left staggered" use:reveal>
                 <i class="ph ph-device-mobile"></i>
                 <div class="block">
                     <span class="title">Mobile Number</span>
                     <p>(022) 188-5240</p>
                 </div>
             </div>
-            <div class="row">
+            <div class="row reveal-section from-left staggered" use:reveal>
                 <i class="ph ph-calendar-dots"></i>
                 <div class="block">
                     <span class="title">Days Open</span>
                     <p>Mondays to Saturdays</p>
                 </div>
             </div>
-            <div class="row">
+            <div class="row reveal-section from-left staggered" use:reveal>
                 <i class="ph ph-clock"></i>
                 <div class="block">
                     <span class="title">Business Hours</span>
                     <p>9:30am to 5:00pm</p>
                 </div>
             </div>
-            <div class="links">
-                <a href="/book" class="book-link" title="Book Now">
-                    Book Now
-                    <!-- <i class="ph ph-arrow-circle-right"></i> -->
-                </a>
+            <div class="links reveal-section from-left staggered" use:reveal>
+                <ActionButton label="Book Now" link="/book" icon="arrow-circle-right" />
             </div>
         </div>
         <!-- <div></div> -->
-        <div class="hours-image"></div>
+        <div class="hours-image reveal-section from-right staggered" use:reveal></div>
     </div>
 </section>
 
 <style>
-    section {
+    #visit-section {
         /* background-color: var(--color-accent-50); */
         /* border: 2px solid red; */
         /* position: relative; */
         padding: 4rem 0 6rem;
+        scroll-margin-top: 2rem;
     }
     .wrapper {
         /* border: 1px solid green; */
@@ -145,7 +144,10 @@
     }
     .hours > .links {
         padding-top: 1rem;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* text-align: center; */
     }
     .book-link {
         /* background-color: var(--color-accent-500); */

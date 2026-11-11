@@ -1,4 +1,7 @@
 <script>
+    import { reveal } from "$lib/reveal";
+    import { scrollTo } from "$lib/scroll";
+    import ActionButton from "./shared/action-button.svelte";
     import ReviewBubble from "./review-bubble.svelte";
     const list = [
         {
@@ -20,9 +23,9 @@
     ];
 </script>
 
-<section>
+<section id="reviews-section">
     <div class="wrapper">
-        <div class="header">
+        <div class="header reveal-section from-bottom staggered" use:reveal>
             <!-- <span>Our Reviews</span> -->
             <h2>What Our Clients Say</h2>
         </div>
@@ -32,16 +35,23 @@
             {/each}
         </div>
     </div>
+
+    <div class="actions reveal-section from-bottom" use:reveal>
+        <ActionButton label="Visit Us" icon="arrow-down"
+            onclick={() => scrollTo('visit-section')}
+        />
+    </div>
 </section>
 
 <style>
-    section {
+    #reviews-section {
         /* border: 1px solid green; */
         padding: 4rem 0 6rem;
         /* height: 40rem; */
         /* background-color: var(--color-accent-800); */
         /* background-image: url(/images/pattern-001.svg); */
         background-color: var(--color-accent-50);
+        scroll-margin-top: 2rem;
     }
     .wrapper {
         /* background-color: var(--color-off-white); */
@@ -96,4 +106,10 @@
             grid-template-columns: repeat(4, 1fr);
         }
     } */
+    .actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2rem;
+    }
 </style>

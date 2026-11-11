@@ -11,7 +11,7 @@
     }
     @media (min-width: 40rem) {
         .logo {
-            font: 400 3.5rem var(--font-logo);
+            font: 400 4rem var(--font-logo);
         }
     }
 </style>
