@@ -33,22 +33,22 @@
     <a href="/" title="Home"
         class:active={page.url.pathname === '/'}
         >Home</a>
-    <a href="/services" title="Expertise"
+    <a href="/" title="Expertise"
         data-sveltekit-reload
         class:active={page.url.pathname.startsWith('/')}
         >Services</a>
-    <a href="/gallery" title="Gallery"
+    <a href="/" title="Gallery"
         data-sveltekit-reload
         class:active={page.url.pathname.startsWith('/')}
         >Gallery</a>
-    <a href="/reviews" title="Reviews"
+    <a href="/" title="Reviews"
         data-sveltekit-reload
         class:active={page.url.pathname.startsWith('/')}
         >Reviews</a>
     <a href="/book" title="Book Now" class="book"
         data-sveltekit-reload
         >Book Now</a>
-    <a href="/reviews" title="Login"
+    <a href="/" title="Login"
         data-sveltekit-reload
         class:active={page.url.pathname.startsWith('/')}
         >Login | Register</a>
