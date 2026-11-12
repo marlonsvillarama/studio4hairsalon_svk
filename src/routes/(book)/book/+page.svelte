@@ -5,13 +5,18 @@
     import BookingLogin from "$lib/components/booking-form/booking-login.svelte";
 
     let currentPage = $state('email');
+
+    const loginUser = () => {
+        currentPage = 'register';
+    };
 </script>
 
 <!-- <Header /> -->
 <!-- <div class="page-hero"> -->
     <!-- <div class="img reveal-section from-left" use:reveal></div> -->
 {#if currentPage === 'email'}
-    <BookingLogin />
+    <BookingLogin onlogin={loginUser} />
+{:else if currentPage === 'register'}
 {/if}
 <!-- </div> -->
 

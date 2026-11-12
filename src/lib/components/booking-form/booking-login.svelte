@@ -1,5 +1,9 @@
 <script>
     import { reveal } from "$lib/reveal";
+
+    let {
+        onlogin
+    } = $props();
 </script>
 
 <div class="booking-login reveal-section from-bottom" use:reveal>
@@ -35,7 +39,7 @@
         <div class="form email-login">
             <label for="email">Enter your email address</label>
             <input type="text" id="email" name="email" />
-            <button type="button" class="btn-action">
+            <button type="button" class="btn-action" onclick={onlogin}>
                 Login or Register
             </button>
         </div>
