@@ -12,7 +12,11 @@
 <!-- <header class:scrolled={scrollY > 50}> -->
     <div class="container">
         <Logo />
-        <!-- <Nav /> -->
+        <Nav />
+        <!-- <div class="phone">
+            <i class="ph ph-phone"></i>
+            <span>(022) 188-5240</span>
+        </div> -->
     </div>
 </header>
 
@@ -40,8 +44,8 @@
         padding: 1.5rem 0;
         display: flex;
         align-items: center;
-        justify-content: center;
-        /* justify-content: space-between; */
+        /* justify-content: center; */
+        justify-content: space-between;
         transition: padding 300ms ease;
     }
     @media (min-width: 40rem) {
@@ -51,5 +55,19 @@
     }
     :global(header.scrolled > .container) {
         padding: 1rem 0;
+    }
+    header > .container > .phone {
+        color: var(--white);
+        /* font-size: 1.25rem; */
+        /* font-weight: 300; */
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    header > .container > .phone > i {
+        font-size: clamp(1.25rem, 5vw, 2rem);
+    }
+    header > .container > .phone > span {
+        font-size: 1.125rem;
     }
 </style>

@@ -13,7 +13,7 @@
 <div class="hero">
     <div class="hero-img"></div>
     <div class="hero-content">
-        <div></div>
+        <!-- <div></div> -->
         <!-- <header> -->
             <!-- <Logo /> -->
             <!-- <div class="logo">Studio4</div> -->
@@ -126,9 +126,9 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        /* justify-content: center; */
+        justify-content: center;
         gap: 2.5rem;
-        justify-content: space-between;
+        /* justify-content: space-between; */
         /* transform: translateX(-50%) translateY(-50%); */
     }
     /* .hero-content > header {

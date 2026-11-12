@@ -19,7 +19,8 @@
     <!-- <li><a href="/services" title="Services">Services</a></li> -->
     <!-- <li><a href="/gallery" title="Gallery">Gallery</a></li> -->
     <!-- <li><a href="/reviews" title="Reviews">Reviews</a></li> -->
-    <li><a href="/book" title="Reviews">Login | Register</a></li>
+    <li><a href="/book" title="Reviews">Book Now</a></li>
+    <li><a href="/book" title="Reviews"><i class="ph ph-user"></i></a></li>
     <!-- <li><a href="/reviews" title="Reviews">Register</a></li> -->
 </ul>
 <button type="button" class="mobile-menu-btn" title="Menu" popovertarget="mobile-menu">
@@ -68,8 +69,8 @@
     }
     ul.menu > li > a:hover {
         /* background: linear-gradient(to bottom, var(--dark-bg-lightest) 0%, var(--dark-bg-pale) 100%); */
-        background-color: var(--dark-bg-pale);
-        border-color: var(--color-accent-500);
+        background-color: var(--dark);
+        /* border-color: var(--color-accent-500); */
         /* color: var(--darkest); */
     }
     .mobile-menu-btn {
