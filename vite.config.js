@@ -1,5 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
-import adapter from 'adapter-amplify';
+import adapter from 'amplify-adapter';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
