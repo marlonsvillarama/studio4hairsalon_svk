@@ -2,15 +2,15 @@
     import { reveal } from "$lib/reveal";
 
     let {
-        onlogin
+        onsubmit
     } = $props();
 </script>
 
 <div class="booking-login reveal-section from-bottom" use:reveal>
     <h1>Book Now</h1>
-    <p>
+    <!-- <p>
         Welcome to Studio 4, your premier destination for top-notch hair care and relaxation in the heart of Palmerston North.
-    </p>
+    </p> -->
     <!-- <p>
         We combine modern techniques with a warm and inviting atmosphere to ensure every visit is an enjoyable and luxurious experience.
     </p> -->
@@ -39,7 +39,7 @@
         <div class="form email-login">
             <label for="email">Enter your email address</label>
             <input type="text" id="email" name="email" />
-            <button type="button" class="btn-action" onclick={onlogin}>
+            <button type="button" class="btn-action" onclick={onsubmit}>
                 Login or Register
             </button>
         </div>
@@ -94,9 +94,10 @@
     } */
     .booking-login > h1 {
         color: var(--darkest);
-        font: 600 clamp(2rem, 5vw, 2rem) var(--font-serif);
+        font: 600 1.75rem var(--font-serif);
     }
     .booking-login > p {
+        /* line-height: 1.5rem; */
         text-align: center;
         width: min(90%, 42rem);
     }
@@ -128,8 +129,8 @@
         height: 1.25rem;
     }
     .booking-login > .actions > .btn-social > span {
-        /* font: 600 0.875rem var(--font-default); */
-        font-weight: 600;
+        font: 600 0.875rem var(--font-default);
+        /* font-weight: 600; */
     }
     .booking-login > .actions > .divider {
         display: flex;

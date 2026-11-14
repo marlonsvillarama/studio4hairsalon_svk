@@ -1,11 +1,14 @@
 <script>
 	import '../../layout.css';
     import { reveal } from "$lib/reveal";
+    import { setCartState } from '$lib/data/cart.svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/shared/header.svelte';
 	import Footer from '$lib/components/shared/footer.svelte';
 
 	let { children } = $props();
+
+    setCartState();
 </script>
 
 <Header />
@@ -21,6 +24,7 @@
 
 <style>
     .booking-page {
+        /* background-color: var(--lightest); */
         min-height: 100vh;
         /* border: 1px solid red; */
         display: flex;

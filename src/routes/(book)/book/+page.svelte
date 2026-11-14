@@ -3,11 +3,18 @@
     // import Header from "$lib/components/shared/header.svelte";
     import Logo from "$lib/components/shared/logo.svelte";
     import BookingLogin from "$lib/components/booking-form/booking-login.svelte";
+    import RegisterUser from "$lib/components/booking-form/register-user.svelte";
+    import Cart from "$lib/components/booking-form/cart/cart.svelte";
 
-    let currentPage = $state('email');
+    let currentPage = $state('cart'); // email
 
     const loginUser = () => {
         currentPage = 'register';
+    };
+
+    const registerUser = () => {
+        console.log('registerUser');
+        currentPage = 'cart';
     };
 </script>
 
@@ -15,8 +22,11 @@
 <!-- <div class="page-hero"> -->
     <!-- <div class="img reveal-section from-left" use:reveal></div> -->
 {#if currentPage === 'email'}
-    <BookingLogin onlogin={loginUser} />
+    <BookingLogin onsubmit={loginUser} />
 {:else if currentPage === 'register'}
+    <RegisterUser onsubmit={registerUser} />
+{:else if currentPage === 'cart'}
+    <Cart />
 {/if}
 <!-- </div> -->
 
