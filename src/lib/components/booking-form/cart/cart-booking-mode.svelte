@@ -2,6 +2,7 @@
     import { getCartState } from "$lib/data/cart.svelte";
     import CartBookTogether from "./cart-book-together.svelte";
     import CartBookSeparated from "./cart-book-separated.svelte";
+    import { onDestroy, onMount } from "svelte";
 
     const cartState = getCartState();
     let page = $state('home')
@@ -9,7 +10,16 @@
     const selectMode = (value) => {
         cartState.updateBookingMode(value);
         console.log('selected Mode ==>', cartState.currentBookingMode)
+        page = cartState.currentBookingMode;
     };
+
+    onMount(() => {
+        cartState.enableNav(false);
+    })
+
+    onDestroy(() => {
+        cartState.enableNav()
+    })
 </script>
 
 <div class="appt-options">
@@ -25,14 +35,16 @@
             </button>
         {/each}
     {:else if page === 'together'}
+        <CartBookTogether />
     {:else if page === 'separate'}
+        <CartBookSeparated />
     {/if}
 </div>
 
 <style>
-    .appt-options {
+    /* .appt-options {
         margin-top: 0.5rem;
-    }
+    } */
     .appt-options > .title {
         display: block;
         font: 600 1rem var(--font-default);
@@ -42,7 +54,7 @@
         border: 1px solid var(--light);
         border-radius: 0.25rem;
         cursor: pointer;
-        margin-top: 1.5rem;
+        margin-top: 1rem;
         padding: 1rem 1.5rem;
         display: flex;
         align-items: flex-start;

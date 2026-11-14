@@ -2,8 +2,9 @@
     import { allCategories, allServices } from "$lib/data/services";
     import { getCartState } from "$lib/data/cart.svelte";
     import CartItem from "./cart-item.svelte";
+    import { onMount, onDestroy } from "svelte";
 
-    // const cartState = getCartState();
+    const cartState = getCartState();
     let activeTab = $state(1);
     let activeServices = $derived.by(() => {
         return allServices.filter(s => s.category === activeTab)
@@ -14,7 +15,16 @@
                 }
             })
     });
+    let enableNav = $derived(cartState.services.length > 0);
     const selectTab = (id) => activeTab = id;
+
+    onMount(() => {
+        cartState.enableNav(cartState.services.length > 0);
+    });
+
+    // onDestroy(() => {
+    //     cartState.enableNav()
+    // })
 </script>
 
 <div class="service-tabs">
@@ -30,7 +40,7 @@
         <li><button type="button" class:active={activeTab === 'treatment'}>Treatment</button></li>
         <li><button type="button" class:active={activeTab === 'other'}>Others</button></li> -->
     </ul>
-    <span class="reminder">You may choose one or more services.</span>
+    <!-- <span class="reminder">You may choose one or more services.</span> -->
 </div>
 <div class="service-list">
     <div class="content">
@@ -47,13 +57,18 @@
         overflow-x: auto;
         overflow-y: hidden;
         /* scrollbar-width: none; */
-        padding-bottom: 1rem;
+        padding-bottom: 2rem;
+    }
+    @media (min-width: 40rem) {
+        .service-tabs {
+            padding-bottom: 0rem;
+        }
     }
     .service-tabs > ul {
         display: flex;
         align-items: center;
-        gap: 1.5rem;
-        margin-bottom: 0.5rem;
+        gap: 1.25rem;
+        /* margin-bottom: 0.5rem; */
     }
     .service-tabs > ul > li > button {
         cursor: pointer;
@@ -73,6 +88,9 @@
     .service-tabs > .reminder {
         opacity: 0.6;
         font: italic 300 1rem var(--font-default);
+        /* border: 1px solid red; */
+        display: block;
+        margin-bottom: 1rem;
     }
 
     .service-list {

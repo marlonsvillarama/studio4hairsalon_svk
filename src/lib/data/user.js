@@ -20,6 +20,14 @@ export class User {
     get email() { return this.#email }
     get phone() { return this.#phone }
     get isReturning() { return this.#returning }
+    get data() {
+        return {
+            firstName,
+            lastName,
+            email,
+            phone
+        }
+    }
 
     updateFirstName(value) { this.#firstName = value }
     updateLastName(value) { this.#lastName = value }

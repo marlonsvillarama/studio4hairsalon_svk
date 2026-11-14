@@ -27,7 +27,7 @@
     <div class="details">
         <!-- <button type="button" class="rebook">Rebook your last session?</button> -->
         <div class="totals">
-            <span class="title">For this session</span>
+            <span class="title">Totals for this session</span>
             <div class="row">
                 <span class="label">Subtotal</span>
                 <span class="value">$ {totalPriceDisplay}</span>
@@ -74,14 +74,13 @@
     }
     .cart-user > .details > .totals > .row {
         display: grid;
-        grid-template-columns: 8rem 1fr;
+        grid-template-columns: 10rem 1fr;
         padding-left: 0.75rem;
     }
     .cart-user > .details > .totals > .row > .label {
         opacity: 0.6;
     }
     .cart-user > .details > .totals > .row > .value {
-        /* opacity: 0.6; */
         font-weight: 600;
     }
 </style>

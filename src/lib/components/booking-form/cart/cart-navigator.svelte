@@ -11,18 +11,20 @@
     const cartState = getCartState();
     // console.log('items', cartState.allSteps);
     console.log('step', cartState.currentStep);
+
+    let enabled = $derived(cartState.isNavActive);
     // let currentItem = $derived(items[step]);
     // let prevItem = $derived(step > 0 ? items[step - 1] : null);
     // let nextItem = $derived(step < items.length - 1 ? items[step + 1] : null);
 
     // const updateStep = (inc = 1) => {
-    //     if (step === 0 && inc < 0) return;
-    //     if (step === items.length - 1 && inc > 0) return;
+        // if (step === 0 && inc < 0) return;
+        // if (step === items.length - 1 && inc > 0) return;
 
-    //     step = step + inc;
-    //     console.log('updateStep step ==>', step);
-    //     if (inc > 0) onnext();
-    //     if (inc < 0) onprevious();
+        // step = step + inc;
+        // console.log('updateStep step ==>', step);
+        // if (inc > 0) onnext();
+        // if (inc < 0) onprevious();
     // };
 </script>
 
@@ -36,12 +38,13 @@
 
     {#if cartState.currentStep < cartState.allSteps.length - 1}
         <button type="button" id="navigator-next"
-            class:disabled={cartState.currentStep === cartState.allSteps.length - 1}
+            class:disabled={cartState.currentStep === cartState.allSteps.length - 1 || !cartState.isNavActive}
             onclick={() => cartState.updateStep()}>Next &gt;</button>
             <!-- {/if} -->
         <!-- </div> -->
     {:else}
         <button type="button" id="navigator-submit"
+            class:disabled={cartState.currentStep === cartState.allSteps.length - 1 || !cartState.isNavActive}
             onclick={onfinish}>Submit</button>
     {/if}
     <!-- {#each items as item}
@@ -70,14 +73,17 @@
     #navigator-back:hover {
         background-color: var(--light);
     }
-    #navigator-next {
+    #navigator-next,
+    #navigator-submit {
         background-color: var(--accent-lighter);
     }
-    #navigator-next:hover {
+    #navigator-next:hover,
+    #navigator-submit:hover {
         background-color: var(--accent-light);
     }
     #navigator-back.disabled,
-    #navigator-next.disabled {
+    #navigator-next.disabled,
+    #navigator-submit.disabled {
         background-color: var(--lighter);
         color: var(--semi-dark);
         cursor: not-allowed;

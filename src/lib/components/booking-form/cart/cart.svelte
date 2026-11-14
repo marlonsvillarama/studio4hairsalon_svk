@@ -133,7 +133,8 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
+        /* gap: 1rem; */
         /* border: 1px solid red; */
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
     }
 </style>
