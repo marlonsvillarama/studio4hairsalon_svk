@@ -60,7 +60,7 @@
     .navigator > button {
         border-radius: 0.25rem;
         cursor: pointer;
-        font: 500 0.875rem var(--font-default);
+        font: 500 1rem var(--font-default);
         padding: 0.5rem 1rem;
         transition: background-color 150ms ease-in-out;
     }
@@ -86,7 +86,7 @@
         /* background-color: var(--lighter); */
         /* border: 1px solid var(--light); */
         border-radius: 0.25rem;
-        font: 600 0.875rem var(--font-default);
+        font: 600 1rem var(--font-default);
         padding: 0.5rem 1rem;
     }
 </style>

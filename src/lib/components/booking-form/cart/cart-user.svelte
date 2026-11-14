@@ -50,7 +50,7 @@
     }
     .cart-user > .greeting {
         color: var(--accent);
-        font: 600 1.125rem var(--font-serif);
+        font: 600 1.25rem var(--font-serif);
     }
     .cart-user > .details {
         border: 1px solid var(--light);
@@ -62,12 +62,12 @@
         cursor: pointer;
         text-decoration: underline;
         color: blue;
-        font: 400 0.875rem var(--font-default);
+        font: 400 1rem var(--font-default);
         margin-bottom: 0.5rem;
     }
     .cart-user > .details > .totals {
         color: var(--dark);
-        font-size: 0.875rem;
+        font-size: 1rem;
     }
     .cart-user > .details > .totals > .title {
         font-weight: 600;

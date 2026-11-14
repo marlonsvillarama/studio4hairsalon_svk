@@ -57,7 +57,7 @@
     }
     .service-tabs > ul > li > button {
         cursor: pointer;
-        font-size: 0.875rem;
+        font-size: 1rem;
         padding: 0.375rem 0.5rem;
         border-top: 4px solid transparent;
         transition: border-color 150ms ease-in-out;
@@ -72,7 +72,7 @@
     }
     .service-tabs > .reminder {
         opacity: 0.6;
-        font: italic 300 0.875rem var(--font-default);
+        font: italic 300 1rem var(--font-default);
     }
 
     .service-list {

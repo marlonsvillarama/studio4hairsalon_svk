@@ -49,7 +49,7 @@
     } */
     .cart-item > .name {
         color: var(--dark);
-        font: 500 0.875rem var(--font-default);
+        font: 600 1rem var(--font-default);
     }
     .cart-item > .details {
         display: flex;
@@ -60,10 +60,10 @@
     }
     .cart-item > .details > .duration {
         opacity: 0.5;
-        font: italic 400 0.75rem var(--font-default);
+        font: italic 400 1rem var(--font-default);
     }
     .cart-item > .details > .price {
         color: var(--color-accent-700);
-        font: 600 0.875rem var(--font-default);
+        font: 600 1rem var(--font-default);
     }
 </style>

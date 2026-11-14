@@ -62,16 +62,16 @@
             {totalDurationDisplay}
         </span>
     </div> -->
-    
-    <div class="content">
-        <CartComponent />
-    </div>
 
     <CartNavigator items={cartState.allSteps} bind:step={cartState.currentStep}
         onnext={() => updateStep()}
         onprevious={() => updateStep(-1)}
         onfinish={submitCart}
     />
+    
+    <div class="content">
+        <CartComponent />
+    </div>
 </div>
 
 <style>
@@ -80,7 +80,7 @@
         padding: 6rem 0 3rem;
         display: flex;
         flex-direction: column;
-        /* gap: 0.25rem; */
+        gap: 0.75rem;
         height: 100vh;
         max-height: 100vh;
         width: min(92%, 110rem);
@@ -134,6 +134,6 @@
         display: flex;
         flex-direction: column;
         /* border: 1px solid red; */
-        margin-bottom: 1rem;
+        margin-bottom: 2rem;
     }
 </style>
