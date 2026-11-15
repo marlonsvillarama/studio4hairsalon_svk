@@ -47,14 +47,14 @@
                     <a class="card" class:plain={!card.image} href="/book?category={card.id}"
                         style={card.image ? `--img: url(/images/${card.image}-ds.png)` : undefined}>
                         <span class="title">{card.name}</span>
-                        <span class="blurb">{card.blurb}</span>
+                        <!-- <span class="blurb">{card.blurb}</span> -->
                         <span class="price">{formatPrice(card.from, true)}</span>
-                        {#if card.gold.length}
+                        <!-- {#if card.gold.length}
                             <span class="gold">
                                 <strong>Gold Card</strong>
                                 {card.gold.map(s => `${s.name.replace(/\s+haircut.*$/i, '')} ${formatPrice(s.goldCardPrice)} (usually ${formatPrice(s.price)})`).join(' · ')}
                             </span>
-                        {/if}
+                        {/if} -->
                         <span class="cta">See prices and book <i class="ph ph-arrow-right" aria-hidden="true"></i></span>
                     </a>
                 </li>
