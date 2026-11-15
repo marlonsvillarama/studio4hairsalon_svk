@@ -17,6 +17,13 @@
     let newDate = $state('');
     let newTime = $state('');
 
+    // True when the booked service has since been turned off or removed
+    // (directly, or through its category). The booking itself is unaffected.
+    const retired = (item) => {
+        const s = item.service;
+        return !s || !s.is_active || !!s.deleted_at || !s.category?.is_active || !!s.category?.deleted_at;
+    };
+
     const statusLabel = { confirmed: 'Confirmed', cancelled: 'Cancelled', completed: 'Completed', no_show: 'No-show' };
 
     async function load() {
@@ -26,7 +33,8 @@
         let q = sb.from('s4_bookings')
             .select(`id, reference, starts_at, ends_at, status, total_cents, has_variable_price, gold_card, notes, cancel_reason, source,
                      client:s4_clients ( first_name, last_name, phone_e164, email, email_verified ),
-                     items:s4_booking_items ( name, price_cents, gold_card_applied, sort_order )`);
+                     items:s4_booking_items ( name, price_cents, gold_card_applied, sort_order,
+                         service:s4_services ( is_active, deleted_at, category:s4_categories ( is_active, deleted_at ) ) )`);
         q = tab === 'upcoming'
             ? q.gte('starts_at', startOfToday).order('starts_at', { ascending: true }).limit(200)
             : q.lt('starts_at', startOfToday).order('starts_at', { ascending: false }).limit(100);
@@ -129,7 +137,7 @@
                                     <div><dt>Services</dt><dd>
                                         <ul class="items">
                                             {#each b.items.toSorted((a, z) => a.sort_order - z.sort_order) as i}
-                                                <li><span>{i.name}{#if i.gold_card_applied} <span class="tag">Gold Card</span>{/if}</span><span>{dollars(i.price_cents)}</span></li>
+                                                <li><span>{i.name}{#if i.gold_card_applied} <span class="tag">Gold Card</span>{/if}{#if retired(i)} <span class="tag retired">No longer offered</span>{/if}</span><span>{dollars(i.price_cents)}</span></li>
                                             {/each}
                                         </ul>
                                     </dd></div>
@@ -333,6 +341,10 @@
         font-size: 0.75rem;
         font-weight: 600;
         padding: 0.0625rem 0.375rem;
+    }
+    .tag.retired {
+        background-color: var(--light);
+        color: var(--dark);
     }
     .actions {
         display: flex;

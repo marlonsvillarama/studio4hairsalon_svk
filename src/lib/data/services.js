@@ -21,19 +21,23 @@ const toService = (s) => ({
 export async function loadCatalogue() {
     const sb = getSupabase();
     const [categories, services] = await Promise.all([
-        sb.from('s4_categories').select('id, slug, name').eq('is_active', true).order('sort_order'),
+        sb.from('s4_categories').select('id, slug, name, description').eq('is_active', true).is('deleted_at', null).order('sort_order'),
         sb.from('s4_services')
             .select('id, category_id, name, price_cents, gold_card_price_cents, duration_min, price_is_from, is_addon')
             .eq('is_active', true)
+            .is('deleted_at', null)
             .order('category_id')
             .order('sort_order')
     ]);
     if (categories.error || services.error) {
         throw new CatalogueError((categories.error || services.error).message);
     }
+    // Only services whose category is itself offered (a signed-in staff
+    // session can read hidden rows through RLS; customers never see them).
+    const offered = new Set(categories.data.map(c => c.id));
     return {
         categories: categories.data,
-        services: services.data.map(toService)
+        services: services.data.filter(s => offered.has(s.category_id)).map(toService)
     };
 }
 

@@ -24,8 +24,8 @@
         .map(c => ({
             ...c,
             image: null,
-            blurb: '',
             ...details[c.slug],
+            blurb: c.description || details[c.slug]?.blurb || '',
             from: startingPrice(catalogue.services, c.id),
             gold: goldCardServices(catalogue.services, c.id)
         }))

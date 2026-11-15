@@ -47,6 +47,7 @@
     const nav = [
         { href: '/admin', label: 'Bookings' },
         { href: '/admin/time-off', label: 'Time off' },
+        { href: '/admin/categories', label: 'Categories' },
         { href: '/admin/services', label: 'Services' },
         { href: '/admin/settings', label: 'Settings' }
     ];

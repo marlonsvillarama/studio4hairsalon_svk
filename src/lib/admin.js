@@ -36,5 +36,20 @@ export const adminError = (error) => {
     if (error.code === '23P01') return 'That time overlaps another confirmed booking.';
     if (error.code === '42501') return "You don't have permission to do that.";
     if (error.code === '23514') return 'One of the values is out of range. Please check and try again.';
+    if (error.code === '23505') return 'Something with that name already exists. Please choose another name.';
+    if (error.code === '23503') return "It's still used by bookings or services, so it can't be deleted.";
     return error.message || 'Something went wrong.';
 };
+
+/** "Hair & Make-up!" → "hair-and-make-up" (for category slugs). */
+export const slugify = (name) => name
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'category';
+
+/** Soft-removed rows keep a suffix on their slug so the name can be reused. */
+export const removedSlug = (slug, id) => `${slug}--removed-${id}`;
+export const restoredSlug = (slug) => slug.replace(/--removed-\d+$/, '');
