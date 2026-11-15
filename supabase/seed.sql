@@ -1,0 +1,3 @@
+-- Intentionally empty. Studio 4's catalogue, opening hours, settings and
+-- booking history are created by the migrations in supabase/migrations
+-- (20261115000200_s4_import.sql imports them from the archived originals).

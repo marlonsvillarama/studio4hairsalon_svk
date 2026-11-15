@@ -4,27 +4,20 @@
     import Nav from "./nav.svelte";
 
     let scrollY = $state(0);
+    let onBooking = $derived(page.url.pathname.startsWith('/book'));
 </script>
 
 <svelte:window bind:scrollY />
 
-<header class:scrolled={scrollY > 50 || page.url.pathname.length > 1}>
-<!-- <header class:scrolled={scrollY > 50}> -->
+<header class:scrolled={scrollY > 50 || page.url.pathname.length > 1} class:compact={onBooking}>
     <div class="container">
-        <Logo />
+        <a href="/" class="home-link" aria-label="Studio 4 Hair Salon, home"><Logo /></a>
         <Nav />
-        <!-- <div class="phone">
-            <i class="ph ph-phone"></i>
-            <span>(022) 188-5240</span>
-        </div> -->
     </div>
 </header>
 
 <style>
     header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
         position: fixed;
         top: 0;
         left: 0;
@@ -32,20 +25,18 @@
         z-index: 1000;
         transition: background-color 300ms ease;
     }
-    :global(header.scrolled) {
-        /* background-color: var(--darkest); */
+    header.scrolled {
         background-color: var(--darkest);
     }
     header > .container {
-        /* border: 1px solid red; */
         margin: 0 auto;
         width: 90%;
         max-width: 110rem;
         padding: 1.5rem 0;
         display: flex;
         align-items: center;
-        /* justify-content: center; */
         justify-content: space-between;
+        gap: 1rem;
         transition: padding 300ms ease;
     }
     @media (min-width: 40rem) {
@@ -53,21 +44,21 @@
             padding: 2rem 0;
         }
     }
-    :global(header.scrolled > .container) {
+    header.scrolled > .container {
         padding: 1rem 0;
     }
-    header > .container > .phone {
-        color: var(--white);
-        /* font-size: 1.25rem; */
-        /* font-weight: 300; */
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    .home-link {
+        display: block;
+        flex: none;
     }
-    header > .container > .phone > i {
-        font-size: clamp(1.25rem, 5vw, 2rem);
-    }
-    header > .container > .phone > span {
-        font-size: 1.125rem;
+
+    /* On the booking page the form needs the room: a slimmer bar on phones. */
+    @media (max-width: 39.99rem) {
+        header.compact > .container {
+            padding: 0.5rem 0;
+        }
+        header.compact :global(.logo) {
+            font-size: 2.25rem;
+        }
     }
 </style>

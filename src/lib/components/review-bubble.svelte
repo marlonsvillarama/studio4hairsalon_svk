@@ -3,89 +3,51 @@
     let { data } = $props();
 </script>
 
-<section class="review reveal-section from-bottom staggered" use:reveal>
-    <div class="bubble">
-        <div class="stars">
-            {#each { length: 5} as _}
-            <i class="ph-fill ph-star"></i>
-            {/each}
-        </div>
-        <div class="content">
-            <i class="ph-fill ph-quotes"></i>
-            <p>{data.text}</p>
-        </div>
-    </div>
-    <div class="author">
-        <div class="avatar">{data.author[0]}</div>
-        <div class="name">{data.author}</div>
-    </div>
-</section>
+<figure class="review reveal-section from-bottom staggered" use:reveal>
+    <blockquote class="bubble">
+        <p>{data.text}</p>
+    </blockquote>
+    <figcaption class="author">{data.author}</figcaption>
+</figure>
 
 <style>
     .review {
         display: flex;
         flex-direction: column;
     }
-    .review > .bubble {
+    .bubble {
         background-color: var(--color-off-white);
+        box-shadow: 0 6px 18px -8px rgba(27, 27, 27, 0.28), 0 1px 3px rgba(27, 27, 27, 0.08);
+        padding: 1.75rem 1.75rem 2rem;
         position: relative;
-        /* border-radius: 0.25rem; */
-        box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
-        padding: 1.25rem 1.5rem;
-        height: 15rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
     }
-    .review > .bubble::after {
+    /* The speech-bubble tail, pointing at the client's name. */
+    .bubble::after {
         content: "";
         position: absolute;
-        bottom: 0;
-        left: 30%;
-        width: 0;
-        height: 0;
-        border: 2rem solid transparent;
+        bottom: -1.25rem;
+        left: 2.25rem;
+        border: 1.25rem solid transparent;
         border-top-color: var(--color-off-white);
         border-bottom: 0;
         border-left: 0;
-        margin-left: -1rem;
-        margin-bottom: -2rem;
     }
-    .review > .bubble > .stars {
-        display: flex;
-        align-items: center;
-        color: var(--color-accent-400);
-        font-size: 1.5rem;
+    .bubble > p {
+        color: var(--darkest);
+        font: 400 clamp(1.0625rem, 1.6vw, 1.1875rem) / 1.6 var(--font-serif);
+        text-wrap: pretty;
     }
-    .review > .bubble > .content {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
+    .bubble > p::before {
+        content: "\201C";
+        color: var(--color-accent-700);
     }
-    .review > .bubble > .content > i {
-        font-size: 2.5rem;
-        opacity: 0.2;
+    .bubble > p::after {
+        content: "\201D";
+        color: var(--color-accent-700);
     }
-    .review > .author {
-        display: flex;
-        align-items: center;
-        gap: 3rem;
-        padding: 1rem;
-    }
-    .review > .author > .avatar {
-        height: 3rem;
-        width: 3rem;
-        background-color: var(--color-accent-600);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        color: var(--color-off-white);
-    }
-    @media (min-width: 80rem) {
-        .review > .bubble {
-            height: 12rem;
-        }
+    .author {
+        color: var(--darkest);
+        font-weight: 600;
+        padding: 1.75rem 0 0 2.25rem;
     }
 </style>

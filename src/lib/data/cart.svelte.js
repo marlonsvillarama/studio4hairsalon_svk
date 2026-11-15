@@ -1,115 +1,393 @@
 import { getContext, setContext } from "svelte";
-import { SvelteDate } from "svelte/reactivity";
-import { allServices } from "./services";
-import { User } from "./user";
-import CartServices from "$lib/components/booking-form/cart/cart-services.svelte";
-import CartBookingMode from "$lib/components/booking-form/cart/cart-booking-mode.svelte";
-import CartAppointment from "$lib/components/booking-form/cart/cart-appointment.svelte";
-// import CartCalendar from "$lib/components/booking-form/cart/cart-calendar.svelte";
+import { getSupabase, errorCode } from "$lib/supabase";
+import { loadCatalogue, priceFor, formatDuration } from "./services";
+import { submitBooking } from "./booking";
+import { loadSchedule, refreshBusy, getOpenDays, getSlots, formatTime } from "./availability";
+
+const STORAGE_KEY = 'studio4.booking';
+const CONFIRMED_KEY = 'studio4.booking.confirmed';
+
+export const STEPS = [
+    { id: 'services', label: 'Services' },
+    { id: 'appointment', label: 'Date & time' },
+    { id: 'details', label: 'Your details' },
+    { id: 'review', label: 'Confirm' },
+];
+
+const emptyClient = () => ({ firstName: '', lastName: '', phone: '', email: '', notes: '' });
+
+// Loose NZ-friendly phone check: 7–15 digits once spaces, dashes, brackets
+// and a leading + are removed. The database normalises it properly.
+const isPhone = (v) => /^\+?\d{7,15}$/.test(v.replace(/[\s\-()]/g, ''));
+const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+// "+64221885240" → "0221885240", the way NZ clients write their own number.
+const nationalPhone = (e164) => e164?.startsWith('+64') ? `0${e164.slice(3)}` : (e164 || '');
 
 export class CartState {
-    BOOKING_MODES = [
-        {
-            id: 'together',
-            name: 'Book together',
-            desc: 'We will find the soonest available date and time for all services.'
-        },
-        {
-            id: 'separate',
-            name: 'Book separately',
-            desc: 'Choose a separate date and time for each service.'
-        },
-    ];
-    STEPS = [
-        { id: 'services', label: 'Services', content: CartServices },
-        { id: 'booking-mode', label: 'Booking Mode', content: CartBookingMode },
-        { id: 'appointment', label: 'Date & Time', content: CartAppointment },
-        // { id: 'summary', label: 'Summary', content: CartServices }
-    ];
-    step = $state(1);
+    // What's loaded from Supabase.
+    catalogue = $state({ categories: [], services: [] });
+    schedule = $state(null);
+    loadState = $state('loading');   // loading | ready | error
+    loadError = $state('');
+
+    // Signed in with Google (optional).
+    account = $state(null);          // { email } once linked to s4_clients
+    authNotice = $state('');
+
+    // The booking being built.
+    step = $state(0);
     services = $state([]);
-    dt = new SvelteDate();
-    // price = $state(0);
-    // duration = $state(0);
-    user = $state(null);
-    bookingMode = $state('');
-    activeNav = $state(true);
+    date = $state('');               // "YYYY-MM-DD", salon time
+    time = $state('');               // "HH:MM", salon time
+    client = $state(emptyClient());
+    goldCard = $state(false);
+    status = $state('idle');         // idle | submitting | error | done
+    errorMessage = $state('');
+    reference = $state('');
+    showErrors = $state(false);
+    serverErrors = $state({});       // field errors that only the server can know (e.g. phone_in_use)
+    focusRequest = $state(0);
+    timeNotice = $state('');
+    confirmation = $state(null);
 
-    constructor (initial = 0) {
-        this.step = initial;
-        this.services = [];
-        this.user = new User();
+    get currentStep() { return STEPS[this.step] }
+    get isLastStep() { return this.step === STEPS.length - 1 }
+    get timezone() { return this.schedule?.timezone || 'Pacific/Auckland' }
+
+    get selectedItems() {
+        return this.services.map(id => this.catalogue.services.find(s => s.id === id)).filter(Boolean);
+    }
+    priceOf = (service) => priceFor(service, this.goldCard);
+    usesGoldCard = (service) => this.goldCard && service.goldCardPrice != null;
+
+    get totalPrice() { return this.selectedItems.reduce((sum, s) => sum + this.priceOf(s), 0) }
+    get totalDuration() { return this.selectedItems.reduce((sum, s) => sum + s.duration, 0) }
+    get hasVariablePrice() { return this.selectedItems.some(s => s.range) }
+    get onlyAddOns() { return this.services.length > 0 && this.selectedItems.every(s => s.addon) }
+
+    get openDays() { return getOpenDays(this.schedule) }
+    slotsFor = (isoDate) => getSlots(this.schedule, isoDate, this.totalDuration);
+
+    get detailErrors() {
+        const c = this.client;
+        const errors = { ...this.serverErrors };
+        if (!c.firstName.trim()) errors.firstName = 'Please enter your first name.';
+        if (!c.phone.trim()) errors.phone = 'Please enter a mobile number so I can reach you.';
+        else if (!isPhone(c.phone)) errors.phone = 'That number looks too short. Try including the area code, e.g. 022 188 5240.';
+        if (!this.account && c.email.trim() && !isEmail(c.email.trim())) errors.email = 'Check the email address, e.g. name@example.com.';
+        return errors;
     }
 
-    get allBookingModes() { return this.BOOKING_MODES }
-    get allSteps() { return this.STEPS }
-    get appointmentDate() { return this.dt }
-    get currentBookingMode() { return this.bookingMode }
-    get currentStep() { return this.step }
-    get currentView() { return this.STEPS[this.step] }
-    get currentUser() { return this.user }
-    get isNavActive() { return this.activeNav }
-    get selectedServices() { return this.services }
-    get totalPrice() {
-        return this.services.length > 0 ?
-            allServices.filter(d => this.services.indexOf(d.id) >= 0).reduce((sum, next) => sum + next.price, 0) :
-            0;
-    }
-    get totalDuration() {
-        return this.services.length > 0 ?
-            allServices.filter(d => this.services.indexOf(d.id) >= 0).reduce((sum, next) => sum + next.duration, 0) :
-            0;
-    }
-    get data() {
-        return {
-            services,
-            user: this.user?.data
-        };
-    };
-
-    addService = (id) => {
-        this.services = [ ...this.services, id ];
-        this.activeNav = this.services.length > 0;
+    get blocker() {
+        switch (this.currentStep.id) {
+            case 'services':
+                if (!this.services.length) return 'Choose at least one service to continue.';
+                if (this.onlyAddOns) return 'Extras like a hair wash go with another service. Please add a main service too.';
+                return '';
+            case 'appointment':
+                if (!this.date) return 'Choose a day.';
+                if (!this.time) return 'Choose a time.';
+                return '';
+            case 'details':
+                return Object.keys(this.detailErrors).length ? 'Fill in the highlighted fields.' : '';
+            default:
+                return '';
+        }
     }
 
-    enableNav = (value = true) => this.activeNav = value;
+    // ─── loading ────────────────────────────────────────────────────────
+
+    /** Load catalogue + calendar, restore saved progress, pick up a Google session. */
+    init = async () => {
+        this.loadState = 'loading';
+        this.loadError = '';
+        try {
+            const [catalogue, schedule] = await Promise.all([loadCatalogue(), loadSchedule()]);
+            this.catalogue = catalogue;
+            this.schedule = schedule;
+            this.loadState = 'ready';
+        } catch (err) {
+            console.error('[booking] could not load', err);
+            this.loadState = 'error';
+            this.loadError = "I couldn't load the booking calendar. Please check your connection and try again.";
+            return;
+        }
+
+        this.restore();
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('error') || params.get('error_description')) {
+            this.authNotice = "Google sign-in didn't finish. You can still enter your details below.";
+        }
+
+        const sb = getSupabase();
+        sb.auth.onAuthStateChange((event) => {
+            // Never await Supabase calls inside this callback; defer instead.
+            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+                setTimeout(() => this.loadAccount(), 0);
+            }
+        });
+    }
+
+    /** Re-check busy times (e.g. when the client comes back to the calendar). */
+    refreshAvailability = async () => {
+        if (!this.schedule) return;
+        try {
+            await refreshBusy(this.schedule);
+            this.revalidateTime();
+        } catch { /* keep the last known calendar */ }
+    }
+
+    // ─── Google account ─────────────────────────────────────────────────
+
+    signInWithGoogle = async () => {
+        this.authNotice = '';
+        this.persist();  // the cart survives the round trip through Google
+        const { error } = await getSupabase().auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: `${window.location.origin}/book?resume=details` }
+        });
+        if (error) this.authNotice = "Google sign-in didn't start. You can still enter your details below.";
+    }
+
+    signOut = async () => {
+        await getSupabase().auth.signOut();
+        this.account = null;
+        this.client.email = '';
+        this.persist();
+    }
+
+    loadAccount = async () => {
+        const sb = getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) {
+            this.account = null;
+            return;
+        }
+        const { data: profile, error } = await sb.rpc('s4_link_my_client');
+        if (error) {
+            console.error('[booking] could not link account', error);
+            this.authNotice = "You're signed in, but I couldn't load your details. Please enter them below.";
+            return;
+        }
+        this.account = { email: profile.email };
+        // Fill only what the client hasn't typed already.
+        const c = this.client;
+        if (!c.firstName.trim() && profile.first_name) c.firstName = profile.first_name;
+        if (!c.lastName.trim() && profile.last_name) c.lastName = profile.last_name;
+        if (!c.phone.trim() && profile.phone) c.phone = nationalPhone(profile.phone);
+        c.email = profile.email || '';
+        if (profile.has_gold_card) this.goldCard = true;
+        this.persist();
+    }
+
+    // ─── editing ────────────────────────────────────────────────────────
+
+    isSelected = (id) => this.services.includes(id);
+
+    toggleService = (id) => {
+        this.services = this.isSelected(id)
+            ? this.services.filter(s => s !== id)
+            : [...this.services, id];
+        this.revalidateTime();
+        this.persist();
+    }
 
     removeService = (id) => {
-        this.services = this.services.filter(d => d !== id);
-        this.activeNav = this.services.length > 0;
+        this.services = this.services.filter(s => s !== id);
+        this.revalidateTime();
+        this.persist();
     }
 
-    updateBookingMode = (mode = 1) => this.bookingMode = mode;
-
-    updateDate = (value) => {
-        this.dt.setUTCFullYear(value.slice(0, 4));
-        this.dt.setMonth(parseInt(value.slice(4, 6)));
-        this.dt.setDate(parseInt(value.slice(6)));
+    // Keep the chosen time when it still fits; otherwise drop it and say why.
+    revalidateTime() {
+        if (!this.date || !this.time) return;
+        if (this.slotsFor(this.date).includes(this.time)) return;
+        this.timeNotice = `${formatTime(this.time)} is no longer free for a ${formatDuration(this.totalDuration)} visit. Please choose another time.`;
+        this.time = '';
     }
 
-    updateStep = (inc = 1) => {
-        if (this.step === 0 && inc < 0) return;
-        if (this.step === this.STEPS.length - 1 && inc > 0) return;
-        if (inc > 0 && !this.isNavActive) return;
-
-        if (this.STEPS[this.step].id === 'services') {
-            this.step = this.STEPS.findIndex(d => d.id === (this.services.length > 1 ? 'booking-mode' : 'appointment'));
-        }
-        else if (this.STEPS[this.step].id === 'booking-mode' && inc === 1) {
-            this.step = this.STEPS.findIndex(d => d.id === 'summary');
-        }
-        else if (this.STEPS[this.step].id === 'appointment' && inc === -1) {
-            this.step = this.STEPS.findIndex(d => d.id === 'services');
-        }
-        else {
-            this.step = this.step + inc;
-        }
-        console.log('updateStep currentStep ==>', this.step);
+    setGoldCard = (value) => {
+        this.goldCard = !!value;
+        this.persist();
     }
 
-    updateTime = (value) => {
-        this.dt.setHours(parseInt(value.slice(0, 2)));
-        this.dt.setMinutes(parseInt(value.slice(2)));
+    selectDate = (iso) => {
+        if (this.date !== iso) this.time = '';
+        this.date = iso;
+        this.timeNotice = '';
+        this.persist();
+    }
+
+    selectTime = (hhmm) => {
+        this.time = hhmm;
+        this.timeNotice = '';
+        this.persist();
+    }
+
+    updateClient = (field, value) => {
+        this.client[field] = value;
+        if (this.serverErrors[field]) {
+            const { [field]: _, ...rest } = this.serverErrors;
+            this.serverErrors = rest;
+        }
+        this.persist();
+    }
+
+    // ─── navigation ─────────────────────────────────────────────────────
+
+    next = () => {
+        if (this.blocker) {
+            this.showErrors = true;
+            this.focusRequest += 1;
+            return false;
+        }
+        this.showErrors = false;
+        if (!this.isLastStep) this.step += 1;
+        this.persist();
+        return true;
+    }
+
+    back = () => {
+        this.showErrors = false;
+        if (this.step > 0) this.step -= 1;
+        this.persist();
+    }
+
+    goTo = (stepId) => {
+        const index = STEPS.findIndex(s => s.id === stepId);
+        if (index >= 0 && index <= this.step) this.step = index;
+        this.persist();
+    }
+
+    // ─── booking ────────────────────────────────────────────────────────
+
+    submit = async () => {
+        if (this.status === 'submitting') return;
+        this.status = 'submitting';
+        this.errorMessage = '';
+        try {
+            const result = await submitBooking({
+                services: [...this.services],
+                date: this.date,
+                time: this.time,
+                timezone: this.timezone,
+                goldCard: this.goldCard,
+                client: { ...this.client }
+            });
+            this.reference = result.reference;
+            this.confirmation = {
+                name: this.client.firstName,
+                email: this.account?.email || this.client.email || '',
+                date: this.date,
+                time: this.time,
+                duration: this.totalDuration,
+                total: result.total,                 // the server's price is the real price
+                variablePrice: result.variablePrice,
+                services: this.selectedItems.map(s => this.usesGoldCard(s) ? `${s.name} (Gold Card)` : s.name),
+                reference: result.reference
+            };
+            this.status = 'done';
+            this.clearStorage();
+            try { sessionStorage.setItem(CONFIRMED_KEY, JSON.stringify(this.confirmation)); } catch { /* ignore */ }
+        }
+        catch (err) {
+            await this.recover(err);
+        }
+    }
+
+    // Send the client to the step that can fix the problem.
+    async recover(err) {
+        const code = err?.code || errorCode(err);
+        if (['slot_taken', 'too_soon', 'too_far', 'outside_hours'].includes(code)) {
+            const lost = this.time;
+            await this.refreshAvailability();
+            this.time = '';
+            this.timeNotice = code === 'slot_taken'
+                ? `Someone has just booked ${formatTime(lost)}. Please choose another time.`
+                : `${err.message} Please choose another time.`;
+            this.status = 'idle';
+            this.goTo('appointment');
+            return;
+        }
+        if (code === 'phone_in_use' || code === 'invalid_phone' || code === 'invalid_details') {
+            this.serverErrors = code === 'invalid_details'
+                ? { firstName: err.message }
+                : { phone: err.message };
+            this.status = 'idle';
+            this.showErrors = true;
+            this.goTo('details');
+            this.focusRequest += 1;
+            return;
+        }
+        if (code === 'invalid_services') {
+            try { this.catalogue = await loadCatalogue(); } catch { /* keep the old list */ }
+            this.services = this.services.filter(id => this.catalogue.services.some(s => s.id === id));
+            this.status = 'idle';
+            this.goTo('services');
+            return;
+        }
+        this.status = 'error';
+        this.errorMessage = err?.message || 'Something went wrong while booking.';
+    }
+
+    startOver = () => {
+        this.step = 0;
+        this.services = [];
+        this.date = '';
+        this.time = '';
+        const email = this.account?.email || '';
+        this.client = { ...emptyClient(), email };
+        this.goldCard = false;
+        this.confirmation = null;
+        this.timeNotice = '';
+        this.serverErrors = {};
+        this.status = 'idle';
+        this.reference = '';
+        this.clearStorage();
+        try { sessionStorage.removeItem(CONFIRMED_KEY); } catch { /* ignore */ }
+    }
+
+    // ─── persistence ────────────────────────────────────────────────────
+
+    persist() {
+        try {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+                step: this.step, services: this.services, date: this.date,
+                time: this.time, client: this.client, goldCard: this.goldCard
+            }));
+        } catch { /* storage unavailable: progress just won't survive a reload */ }
+    }
+
+    restore() {
+        try {
+            const confirmed = JSON.parse(sessionStorage.getItem(CONFIRMED_KEY) || 'null');
+            if (confirmed) {
+                this.confirmation = confirmed;
+                this.reference = confirmed.reference;
+                this.status = 'done';
+                return true;
+            }
+            const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
+            if (!saved) return false;
+            this.services = (saved.services || []).filter(id => this.catalogue.services.some(s => s.id === id));
+            this.date = saved.date || '';
+            this.time = saved.time || '';
+            this.client = { ...emptyClient(), ...(saved.client || {}) };
+            this.goldCard = !!saved.goldCard;
+            if (this.date && !this.openDays.includes(this.date)) this.date = '';
+            if (!this.date || !this.slotsFor(this.date).includes(this.time)) this.time = '';
+            const target = Math.min(Math.max(saved.step || 0, 0), STEPS.length - 1);
+            this.step = 0;
+            while (this.step < target && !this.blocker) this.step += 1;
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    clearStorage() {
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
     }
 }
 

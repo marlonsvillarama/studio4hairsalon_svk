@@ -4,29 +4,30 @@
     import { setCartState } from '$lib/data/cart.svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/shared/header.svelte';
-	import Footer from '$lib/components/shared/footer.svelte';
 
 	let { children } = $props();
 
     setCartState();
 </script>
 
+<svelte:head>
+    <link rel="icon" href={favicon} />
+    <title>Book with John · Studio 4 Hair Salon</title>
+</svelte:head>
+
 <Header />
 
 <div class="booking-page">
-    <div class="img reveal-section from-left" use:reveal></div>
-    <div class="booking-content reveal-section from-bottom" use:reveal>
-
+    <div class="img reveal-section from-left" use:reveal role="img"
+        aria-label="John with two smiling clients outside the Studio 4 salon"></div>
+    <main class="booking-content">
 		{@render children?.()}
-
-	</div>
+	</main>
 </div>
 
 <style>
     .booking-page {
-        /* background-color: var(--lightest); */
         min-height: 100vh;
-        /* border: 1px solid red; */
         display: flex;
         flex-direction: column;
     }
@@ -42,17 +43,14 @@
     @media (min-width: 60rem) {
         .booking-page > .img {
             display: block;
-            height: 100%;
-            background-color: red;
+            /* Stay in view while the form scrolls. */
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            background-color: var(--darker);
             background-image: url(/images/gallery/book-001.jpg);
             background-size: cover;
             background-position: center;
         }
     }
-	/* .booking-content {
-        min-height: 100%;
-        border: 1px solid red;
-        display: flex;
-        flex-direction: column;
-	} */
 </style>

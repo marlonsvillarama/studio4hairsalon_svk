@@ -1,167 +1,75 @@
-export const allCategories = [
-    { id: 1, name: 'Haircuts', slug: "haircuts" },
-    { id: 2, name: 'Colours', slug: "colours" },
-    { id: 3, name: 'Treatment', slug: "treatment" },
-    { id: 4, name: 'Others', slug: "others" },
-];
+import { getSupabase } from "$lib/supabase";
 
-export const allServices = [
-    {
-        category: 1,
-        id: 1,
-        name: 'Under 12 years old',
-        price: 25,
-        duration: 15
-    },
-    {
-        category: 1,
-        id: 2,
-        name: 'Men\'s (Gold Card Holder)',
-        price: 30,
-        duration: 20
-    },
-    {
-        category: 1,
-        id: 3,
-        name: 'Women\'s (Gold Card Holder)',
-        price: 35,
-        duration: 30
-    },
-    {
-        category: 1,
-        id: 4,
-        name: 'Women\'s haircut with blowdry',
-        price: 45,
-        duration: 45
-    },
-    {
-        category: 1,
-        id: 5,
-        name: 'Women\'s haircut with hairwash and blowdry',
-        price: 55,
-        duration: 60
-    },
-    {
-        category: 1,
-        id: 6,
-        name: 'Men\'s haircut',
-        price: 35,
-        duration: 30
-    },
-    {
-        category: 1,
-        id: 7,
-        name: 'Hair Iron (additonal)',
-        price: 30,
-        duration: 10
-    },
-    {
-        category: 2,
-        id: 11,
-        name: 'Root Colour',
-        price: 120,
-        duration: 60
-    },
-    {
-        category: 2,
-        id: 12,
-        name: 'Hair Colour',
-        price: 130,
-        duration: 60,
-        range: true
-    },
-    {
-        category: 2,
-        id: 13,
-        name: 'Hair Colour with Full Head Foils',
-        price: 220,
-        duration: 120,
-        range: true
-    },
-    {
-        category: 2,
-        id: 14,
-        name: 'Hair Colour with Keratin Treatment',
-        price: 300,
-        duration: 120,
-        range: true
-    },
-    {
-        category: 2,
-        id: 15,
-        name: 'Full Head Foil with Toner',
-        price: 200,
-        duration: 120,
-    },
-    {
-        category: 3,
-        id: 21,
-        name: 'Hair Spa',
-        price: 70,
-        duration: 60,
-    },
-    {
-        category: 3,
-        id: 22,
-        name: 'Keratin Treatment',
-        price: 200,
-        duration: 120,
-    },
-    {
-        category: 3,
-        id: 23,
-        name: 'No-yellow Keratin',
-        price: 220,
-        duration: 120,
-    },
-    {
-        category: 3,
-        id: 24,
-        name: 'Kerabond Treatment',
-        price: 280,
-        duration: 120,
-    },
-    {
-        category: 3,
-        id: 25,
-        name: 'Permanent Straightening',
-        price: 280,
-        duration: 120,
-        range: true,
-    },
-    {
-        category: 4,
-        id: 31,
-        name: 'Hair and Make-up',
-        price: 160,
-        duration: 60,
-    },
-    {
-        category: 5,
-        id: 32,
-        name: 'Hair Styling',
-        price: 80,
-        duration: 60,
-    },
-    {
-        category: 4,
-        id: 33,
-        name: 'Hair and Make-up For Bride',
-        price: 200,
-        duration: 120,
-    },
-    {
-        category: 4,
-        id: 34,
-        name: 'Eyebrow Tattoo',
-        price: 220,
-        duration: 60,
-    },
-    {
-        category: 4,
-        id: 35,
-        name: 'Eyeliner Tattoo',
-        price: 150,
-        duration: 60,
-    },
-];
+// The catalogue lives in Supabase (s4_categories, s4_services). Prices are
+// stored in cents and mapped to dollars here, so components keep working
+// with the same shape: { id, category, name, price, goldCardPrice, duration, range, addon }.
+
+export class CatalogueError extends Error {}
+
+const toService = (s) => ({
+    id: s.id,
+    category: s.category_id,
+    name: s.name,
+    price: s.price_cents / 100,
+    goldCardPrice: s.gold_card_price_cents == null ? null : s.gold_card_price_cents / 100,
+    duration: s.duration_min,
+    range: s.price_is_from,
+    addon: s.is_addon
+});
+
+/** Active categories and services, in display order. */
+export async function loadCatalogue() {
+    const sb = getSupabase();
+    const [categories, services] = await Promise.all([
+        sb.from('s4_categories').select('id, slug, name').eq('is_active', true).order('sort_order'),
+        sb.from('s4_services')
+            .select('id, category_id, name, price_cents, gold_card_price_cents, duration_min, price_is_from, is_addon')
+            .eq('is_active', true)
+            .order('category_id')
+            .order('sort_order')
+    ]);
+    if (categories.error || services.error) {
+        throw new CatalogueError((categories.error || services.error).message);
+    }
+    return {
+        categories: categories.data,
+        services: services.data.map(toService)
+    };
+}
+
+const nzd = new Intl.NumberFormat('en-NZ', {
+    style: 'currency',
+    currency: 'NZD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+});
+
+/** "$35", or "from $130" for services whose price varies. */
+export const formatPrice = (price, range = false) =>
+    `${range ? 'from ' : ''}${nzd.format(price)}`;
+
+/** 45 → "45 min", 90 → "1 hr 30 min", 120 → "2 hr" */
+export const formatDuration = (minutes = 0) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (!hours) return `${mins} min`;
+    return mins ? `${hours} hr ${mins} min` : `${hours} hr`;
+};
+
+/**
+ * What a client pays for a service. Gold Card holders pay `goldCardPrice`
+ * on the services that have one; everyone else pays `price`.
+ */
+export const priceFor = (service, goldCard = false) =>
+    goldCard && service.goldCardPrice != null ? service.goldCardPrice : service.price;
+
+/** Lowest standard (non add-on) price in a category. */
+export const startingPrice = (services, categoryId) => Math.min(
+    ...services
+        .filter(s => s.category === categoryId && !s.addon)
+        .map(s => s.price)
+);
+
+/** Services in a category that have a Gold Card price. */
+export const goldCardServices = (services, categoryId) =>
+    services.filter(s => s.category === categoryId && s.goldCardPrice != null);

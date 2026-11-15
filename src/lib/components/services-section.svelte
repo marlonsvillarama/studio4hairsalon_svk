@@ -1,35 +1,68 @@
 <script>
     import { reveal } from "$lib/reveal";
     import { scrollTo } from "$lib/scroll";
+    import { startingPrice, goldCardServices, formatPrice } from "$lib/data/services";
     import ActionButton from "./shared/action-button.svelte";
+
+    /** @type {{ catalogue: { categories: any[], services: any[] } }} */
+    let { catalogue } = $props();
+
+    // Photo and one-line summary per category. A category added later in
+    // Supabase still shows, with a default photo and no summary.
+    // Keyed by the category slug in Supabase (s4_categories.slug).
+    const details = {
+        haircut: { image: 'haircut', blurb: "Men's, women's and under-16 cuts" },
+        colours: { image: 'colour', blurb: 'Root colour, full colour and foils' },
+        treatment: { image: 'treatment', blurb: 'Hair spa, keratin and straightening' },
+        other: { image: 'makeup', blurb: 'Styling, bridal hair and make-up, brow and liner tattoo' },
+        manicure: { blurb: 'Cleaning, polish and gel manicures' },
+        pedicure: { blurb: 'Cleaning, polish, foot spa and massage' },
+        eyebrows: { blurb: 'Shape and tint, eyebrow trio and lash tint' },
+        facial: { blurb: 'A relaxing basic facial' },
+    };
+    let cards = $derived(catalogue.categories
+        .map(c => ({
+            ...c,
+            image: null,
+            blurb: '',
+            ...details[c.slug],
+            from: startingPrice(catalogue.services, c.id),
+            gold: goldCardServices(catalogue.services, c.id)
+        }))
+        .filter(c => Number.isFinite(c.from)));
 </script>
 
-<section id="services-section">
+<section id="services-section" aria-labelledby="services-heading">
     <div class="wrapper">
         <div class="header reveal-section from-bottom" use:reveal>
-            <!-- <span>Our Services</span> -->
-            <h2>What We Offer</h2>
+            <h2 id="services-heading">What I do</h2>
             <p>
-                Studio 4 Hair Salon is your ultimate destination for exceptional hair care and styling in Palmerston North. We are dedicated to crafting looks that not only reflect your personality but also keep you on the cutting edge of fashion trends. Whether you're looking for a transformative haircut, vibrant coloring, or meticulous hair treatments, our personalized approach ensures you leave our salon looking and feeling your absolute best.
+                Cuts, colour, treatments and styling for the whole family. Every appointment
+                is with me, from the first chat about what you want to the final finish.
             </p>
         </div>
-        <div class="cards reveal-section from-bottom" use:reveal>
-            <div class="card haircut">
-                <span class="title">Haircut</span>
-            </div>
-            <div class="card colours">
-                <span class="title">Colours</span>
-            </div>
-            <div class="card keratin">
-                <span class="title">Keratin</span>
-            </div>
-            <div class="card other">
-                <span class="title">Other</span>
-            </div>
-        </div>
-        <div class="actions reveal-section from-bottom" use:reveal>
-            <!-- <ActionButton label="Book Your Appointment Now" link="/book" icon={true} /> -->
-            <ActionButton label="Meet John" icon="arrow-down"
+        <ul class="cards reveal-section from-bottom" use:reveal>
+            {#each cards as card (card.id)}
+                <li>
+                    <a class="card" class:plain={!card.image} href="/book?category={card.id}"
+                        style={card.image ? `--img: url(/images/${card.image}-ds.png)` : undefined}>
+                        <span class="title">{card.name}</span>
+                        <span class="blurb">{card.blurb}</span>
+                        <span class="price">{formatPrice(card.from, true)}</span>
+                        {#if card.gold.length}
+                            <span class="gold">
+                                <strong>Gold Card</strong>
+                                {card.gold.map(s => `${s.name.replace(/\s+haircut.*$/i, '')} ${formatPrice(s.goldCardPrice)} (usually ${formatPrice(s.price)})`).join(' · ')}
+                            </span>
+                        {/if}
+                        <span class="cta">See prices and book <i class="ph ph-arrow-right" aria-hidden="true"></i></span>
+                    </a>
+                </li>
+            {/each}
+        </ul>
+        <p class="note">All prices in NZ dollars.</p>
+        <div class="actions">
+            <ActionButton label="Meet John" icon="arrow-down" variant="text"
                 onclick={() => scrollTo('john-section')}
             />
         </div>
@@ -38,12 +71,8 @@
 
 <style>
     #services-section {
-        /* border: 1px solid green; */
         padding: 4rem 0 6rem;
-        /* height: 40rem; */
         background-color: var(--color-accent-50);
-        /* background-image: url(/images/pattern-001.svg); */
-        /* border: 2px solid red; */
         scroll-margin-top: 2em;
     }
     .wrapper {
@@ -61,145 +90,111 @@
         gap: 0.5rem;
     }
     .wrapper > .header > p {
-        /* border: 1px solid red; */
-        /* letter-spacing: 0.25px; */
+        color: var(--charcoal);
         line-height: 1.75rem;
         margin: 0 auto;
-        opacity: 0.8;
-        width: min(90%, 40rem);
+        width: min(100%, 38rem);
     }
-    /* .wrapper > .header > span {
-        font-size: 0.875rem;
-        opacity: 0.6;
-        text-transform: uppercase;
-    } */
     .wrapper > .header > h2 {
-        font-size: clamp(2rem, 5vw, 2rem);
+        font-size: clamp(2rem, 5vw, 2.75rem);
         font-family: var(--font-serif);
-        line-height: clamp(2.5rem, 5vw, 2.5rem);
-        /* border: 1px solid red; */
+        line-height: 1.15;
     }
     .wrapper > .cards {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
+        list-style: none;
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.5rem;
     }
     @media (min-width: 40rem) {
         .wrapper > .cards {
-            display: grid;
             grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
         }
     }
     @media (min-width: 80rem) {
         .wrapper > .cards {
-            display: grid;
             grid-template-columns: repeat(4, 1fr);
         }
     }
-    .wrapper > .cards > .card {
-        /* border: 2px solid var(--color-accent-400); */
-        height: 18rem;
+    .card {
+        background-image:
+            linear-gradient(to bottom, rgba(27, 27, 27, 0.15) 0%, rgba(27, 27, 27, 0.55) 45%, rgba(27, 27, 27, 0.9) 100%),
+            var(--img);
+        background-position: 70% center;
         background-size: cover;
-        /* background-size: 80%; */
-        background-position: 70%;
-        /* border: none; */
-        /* border-top: 6px solid transparent; */
-        cursor: pointer;
+        color: var(--color-off-white);
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        text-align: center;
-        transition:
-            border-color 150ms ease-in-out,
-            box-shadow 150ms ease,
-            height 150ms ease,
-            width 150ms ease,
-            transform 150ms ease,
-            z-index 150ms ease,
-            background-image 150ms ease;
-        /* overflow: hidden; */
+        gap: 0.375rem;
+        min-height: 20rem;
+        padding: 1.5rem;
     }
-    /* .wrapper > .cards > .card::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background-color: var(--accent);
-        transform: scaleX(0);
-        transform-origin: bottom left;
-        transition: transform 150ms ease-in-out;
-    } */
-    /* .wrapper > .cards > .card:hover {
-        border-top: 5px solid var(--accent);
-    } */
-    /* .wrapper > .cards > .card:hover::after {
-        transform: scaleX(1);
-    } */
-    /* .wrapper > .cards > .card:hover { */
-        /* box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px; */
-        /* box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px; */
-        /* box-shadow: var(--color-accent-200) 0px 5px 15px; */
-        /* transform: scale(1.02); */
-        /* z-index: 999; */
-    /* } */
-    .wrapper > .cards > .card > .title {
-        margin-bottom: 1rem;
+    /* Categories without a photo yet. */
+    .card.plain {
+        background-image: none;
+        background-color: var(--darker);
+        min-height: 14rem;
+    }
+    .card .title {
+        font: 400 2rem / 1.1 var(--font-serif);
+    }
+    .card .blurb {
+        font-size: 0.9375rem;
+        line-height: 1.4;
+        opacity: 0.9;
+    }
+    .card .price {
+        color: var(--color-accent-300);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.25rem 0.75rem;
+        font-size: 1.375rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        margin-top: 0.5rem;
+    }
+    .card .gold {
         color: var(--color-off-white);
-        font-family: var(--font-serif);
-        font-size: 2rem;
-        font-weight: 300;
-        letter-spacing: 0.5px;
+        font-size: 0.875rem;
+        line-height: 1.4;
     }
-    .haircut {
-        background-image:
-            linear-gradient(to bottom, var(--dark-bg-lighter) 0%, var(--dark-bg-lighter) 100%),
-            url(/images/haircut-ds.png);
+    .card .gold > strong {
+        color: var(--color-accent-300);
+        font-weight: 600;
+        margin-right: 0.25rem;
     }
-    /* .haircut:hover {
-        background-image:
-            linear-gradient(to bottom, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.5) 90%),
-            url(/images/haircut.jpg);
-    } */
-    .colours {
-        background-image:
-            linear-gradient(to bottom, var(--dark-bg-lighter) 0%, var(--dark-bg-lighter) 100%),
-            url(/images/colour-ds.png);
-        /* background-position: 65% !important; */
+    .card .cta {
+        border-top: 1px solid rgba(250, 250, 249, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
     }
-    /* .colours:hover {
-        background-image:
-            linear-gradient(to bottom, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.5) 90%),
-            url(/images/colour.jpg);
-        background-position: 65% !important;
-    } */
-    .keratin {
-        background-image:
-            linear-gradient(to bottom, var(--dark-bg-lighter) 0%, var(--dark-bg-lighter) 100%),
-            url(/images/treatment-ds.png);
-        /* background-position: 70% !important; */
+    .card .cta > i {
+        font-size: 1.125rem;
+        transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
     }
-    /* .keratin:hover {
-        background-image:
-            linear-gradient(to bottom, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.5) 90%),
-            url(/images/treatment.jpg);
-        background-position: 70% !important;
-    } */
-    .other {
-        background-image:
-            linear-gradient(to bottom, var(--dark-bg-lighter) 0%, var(--dark-bg-lighter) 100%),
-            url(/images/makeup-ds.png);
+    .card:hover .cta > i {
+        transform: translateX(4px);
     }
-    /* .other:hover {
-        background-image:
-            linear-gradient(to bottom, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.5) 90%),
-            url(/images/makeup.jpg);
-    } */
+    .card:hover .cta {
+        color: var(--color-accent-300);
+    }
+    .note {
+        color: var(--dark);
+        font-size: 0.875rem;
+        text-align: center;
+    }
     .actions {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-top: 2rem;
+        margin-top: 1rem;
     }
 </style>

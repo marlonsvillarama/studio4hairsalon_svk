@@ -3,68 +3,54 @@
   import ActionButton from "./shared/action-button.svelte";
 </script>
 
-<section id="visit-section">
+<section id="visit-section" aria-labelledby="visit-heading">
     <div class="wrapper">
         <div class="hours reveal-section from-left" use:reveal>
-            <h2>Visit Us</h2>
+            <h2 id="visit-heading">Come and see me</h2>
+            <dl>
             <div class="row reveal-section from-left staggered" use:reveal>
-                <i class="ph ph-map-pin"></i>
-                <div class="block">
-                    <span class="title">Location</span>
-                    <p>7 George Street<br/>Palmerston North</p>
-                </div>
+                <i class="ph ph-map-pin" aria-hidden="true"></i>
+                <dt class="title">Location</dt>
+                <dd>7 George Street<br />Palmerston North</dd>
             </div>
             <div class="row reveal-section from-left staggered" use:reveal>
-                <i class="ph ph-phone"></i>
-                <div class="block">
-                    <span class="title">Phone Number</span>
-                    <p>(06) 353-5678</p>
-                </div>
+                <i class="ph ph-phone" aria-hidden="true"></i>
+                <dt class="title">Phone</dt>
+                <dd><a href="tel:+6463535678">(06) 353-5678</a></dd>
             </div>
             <div class="row reveal-section from-left staggered" use:reveal>
-                <i class="ph ph-device-mobile"></i>
-                <div class="block">
-                    <span class="title">Mobile Number</span>
-                    <p>(022) 188-5240</p>
-                </div>
+                <i class="ph ph-device-mobile" aria-hidden="true"></i>
+                <dt class="title">Mobile</dt>
+                <dd><a href="tel:+64221885240">(022) 188-5240</a></dd>
             </div>
             <div class="row reveal-section from-left staggered" use:reveal>
-                <i class="ph ph-calendar-dots"></i>
-                <div class="block">
-                    <span class="title">Days Open</span>
-                    <p>Mondays to Saturdays</p>
-                </div>
+                <i class="ph ph-calendar-dots" aria-hidden="true"></i>
+                <dt class="title">Days open</dt>
+                <dd>Mondays to Saturdays</dd>
             </div>
             <div class="row reveal-section from-left staggered" use:reveal>
-                <i class="ph ph-clock"></i>
-                <div class="block">
-                    <span class="title">Business Hours</span>
-                    <p>9:30am to 5:00pm</p>
-                </div>
+                <i class="ph ph-clock" aria-hidden="true"></i>
+                <dt class="title">Hours</dt>
+                <dd>9:30am to 5:00pm</dd>
             </div>
+            </dl>
             <div class="links reveal-section from-left staggered" use:reveal>
-                <ActionButton label="Book Now" link="/book" icon="arrow-circle-right" />
+                <ActionButton label="Book with John" link="/book" icon="arrow-right" />
             </div>
         </div>
-        <!-- <div></div> -->
-        <div class="hours-image reveal-section from-right staggered" use:reveal></div>
+        <div class="hours-image reveal-section from-right staggered" use:reveal
+            role="img" aria-label="John styling a client's hair in the salon"></div>
     </div>
 </section>
 
 <style>
     #visit-section {
-        /* background-color: var(--color-accent-50); */
-        /* border: 2px solid red; */
-        /* position: relative; */
         padding: 4rem 0 6rem;
         scroll-margin-top: 2rem;
     }
     .wrapper {
-        /* border: 1px solid green; */
-        /* height: 42rem; */
         width: min(90%, 110rem);
         margin: 0 auto;
-        /* display: flex; */
         gap: 5rem;
         display: flex;
         flex-direction: column;
@@ -77,90 +63,59 @@
         }
     }
     .hours-image {
-        /* position: absolute; */
-        /* border: 2px solid red; */
-        /* top: 0; */
-        /* left: 50%; */
         width: 100%;
         height: 35rem;
         background-image: url(/images/in-action.jpg);
         background-size: cover;
-        /* background-position: center; */
-        /* scale: 0.8; */
-    }
-    .hours {
-        /* padding: 4rem 4rem 6rem 0; */
-        /* padding: 4rem 0 8rem; */
-        /* border: 1px solid red; */
     }
     .hours > h2 {
-        color: var(--color-accent-600);
-        font-size: 2.5rem;
-        font-weight: 500;
-        /* padding-bottom: 0.25rem; */
-        /* border-bottom: 1px solid #1d1d1d; */
+        color: var(--darkest);
+        font: 700 clamp(2rem, 5vw, 2.75rem) / 1.15 var(--font-serif);
         display: inline-block;
         margin-bottom: 2rem;
     }
-    .hours > .row {
+    .hours > dl > .row {
         display: flex;
-        /* align-items: flex-start; */
         align-items: center;
         gap: 1rem;
-        /* border: 1px solid red; */
     }
-    .hours > .row:not(:last-child) {
+    .hours > dl > .row:not(:last-child) {
         padding-bottom: 1.5rem;
         margin-bottom: 1.5rem;
-        border-bottom: 1px solid var(--color-accent-600);
+        border-bottom: 1px solid var(--color-accent-300);
     }
-    .hours > .row > i {
+    .hours > dl > .row > i {
         font-size: 1.5rem;
     }
-    .hours > .row > .block {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        /* border: 1px solid red; */
+    .hours > dl > .row > .title {
         flex: 1;
-        /* flex-direction: column; */
-        gap: 0;
     }
-    .hours > .row > .block > .title {
-        opacity: 0;
-        /* opacity: 0.4; */
+    .hours > dl > .row > .title {
+        color: var(--darkest);
+        font-weight: 600;
     }
-    @media (min-width: 40rem) {
-        .hours > .row > .block > .title {
-            opacity: 1;
-            font-weight: 600;
-            /* opacity: 0.4; */
-        }
-    }
-    .hours > .row > .block > p {
-        line-height: 1.25rem;
-        opacity: 0.7;
+    .hours > dl > .row > dd {
+        color: var(--charcoal);
+        line-height: 1.4;
         text-align: end;
+    }
+    .hours > dl > .row > dd > a {
+        color: var(--darkest);
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: var(--color-accent-600);
+        text-underline-offset: 4px;
+        display: inline-block;
+        padding: 0.5rem 0;
+        margin: -0.5rem 0;
+    }
+    .hours > dl > .row > i {
+        color: var(--color-accent-700);
     }
     .hours > .links {
         padding-top: 1rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        /* text-align: center; */
-    }
-    .book-link {
-        /* background-color: var(--color-accent-500); */
-        /* border-radius: 0.25rem; */
-        /* color: var(--color-off-white); */
-        background-color: var(--color-accent-400);
-        border: 1px solid var(--color-accent-400);
-        color: var(--darkest);
-        font-weight: 600;
-        padding: 0.75rem 2.5rem;
-        transition: background-color 150ms ease;
-    }
-    .book-link:hover {
-        background-color: var(--color-accent-500);
     }
 </style>

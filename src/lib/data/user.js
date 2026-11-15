@@ -22,10 +22,10 @@ export class User {
     get isReturning() { return this.#returning }
     get data() {
         return {
-            firstName,
-            lastName,
-            email,
-            phone
+            firstName: this.#firstName,
+            lastName: this.#lastName,
+            email: this.#email,
+            phone: this.#phone
         }
     }
 
