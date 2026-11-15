@@ -55,9 +55,9 @@
             <span class="switch" aria-hidden="true"></span>
             <span class="text">
                 <span class="title">I have a Gold Card</span>
-                <span class="detail" id="gold-card-detail">
+                <!-- <span class="detail" id="gold-card-detail">
                     {goldCardItems.map(s => `${s.name} ${formatPrice(s.goldCardPrice)} instead of ${formatPrice(s.price)}`).join(' · ')}
-                </span>
+                </span> -->
             </span>
         </label>
     {/if}
