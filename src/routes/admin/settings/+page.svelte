@@ -45,8 +45,7 @@
             online_booking_enabled: settings.online_booking_enabled,
             min_notice_min: Number(settings.min_notice_min),
             horizon_days: Number(settings.horizon_days),
-            slot_step_min: Number(settings.slot_step_min),
-            max_open_bookings_per_phone: Number(settings.max_open_bookings_per_phone)
+            slot_step_min: Number(settings.slot_step_min)
         }).eq('id', true);
         const h = await sb.from('s4_business_hours').upsert(hours.map(d => ({
             weekday: d.weekday,
@@ -89,9 +88,6 @@
                         <option value={30}>30</option>
                         <option value={60}>60</option>
                     </select>
-                </label>
-                <label>Upcoming bookings allowed per client
-                    <input type="number" min="1" max="20" bind:value={settings.max_open_bookings_per_phone} />
                 </label>
             </div>
         </section>

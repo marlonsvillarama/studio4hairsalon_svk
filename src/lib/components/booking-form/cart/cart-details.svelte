@@ -25,10 +25,10 @@
     const fields = [
         { id: 'firstName', label: 'First name', autocomplete: 'given-name', type: 'text', required: true },
         { id: 'lastName', label: 'Last name', autocomplete: 'family-name', type: 'text', optional: true },
-        { id: 'phone', label: 'Mobile number', autocomplete: 'tel', type: 'tel', inputmode: 'tel', required: true,
-          help: "So I can reach you if anything changes." },
+        { id: 'phone', label: 'Mobile number', autocomplete: 'tel', type: 'tel', inputmode: 'tel', optional: true,
+          help: 'So I can text you if anything changes. Add this or an email.' },
         { id: 'email', label: 'Email', autocomplete: 'email', type: 'email', inputmode: 'email', optional: true,
-          help: 'For a copy of your booking.' },
+          help: 'For your booking details. Add this or a mobile number.' },
     ];
 </script>
 

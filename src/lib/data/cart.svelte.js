@@ -72,8 +72,13 @@ export class CartState {
         const c = this.client;
         const errors = { ...this.serverErrors };
         if (!c.firstName.trim()) errors.firstName = 'Please enter your first name.';
-        if (!c.phone.trim()) errors.phone = 'Please enter a mobile number so I can reach you.';
-        else if (!isPhone(c.phone)) errors.phone = 'That number looks too short. Try including the area code, e.g. 022 188 5240.';
+        // Phone and email are both optional, but John needs one way to reach the client.
+        const email = this.account ? this.account.email : c.email.trim();
+        if (!c.phone.trim() && !email) {
+            errors.phone = 'Add a mobile number or an email so I can reach you.';
+            errors.email = 'Add an email or a mobile number.';
+        }
+        if (c.phone.trim() && !isPhone(c.phone)) errors.phone = 'That number looks too short. Try including the area code, e.g. 022 188 5240.';
         if (!this.account && c.email.trim() && !isEmail(c.email.trim())) errors.email = 'Check the email address, e.g. name@example.com.';
         return errors;
     }
@@ -310,7 +315,7 @@ export class CartState {
             this.goTo('appointment');
             return;
         }
-        if (code === 'phone_in_use' || code === 'invalid_phone' || code === 'invalid_details') {
+        if (code === 'phone_in_use' || code === 'invalid_phone' || code === 'invalid_details' || code === 'contact_required') {
             this.serverErrors = code === 'invalid_details'
                 ? { firstName: err.message }
                 : { phone: err.message };

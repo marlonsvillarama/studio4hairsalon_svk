@@ -21,7 +21,7 @@ const MESSAGES = {
     invalid_phone: "That mobile number doesn't look right.",
     invalid_details: 'Please add your first name.',
     phone_in_use: 'That mobile number is already linked to another account.',
-    too_many_bookings: 'You already have a few bookings coming up.',
+    contact_required: 'Add a mobile number or an email so I can reach you.',
     booking_disabled: "Online booking is paused at the moment."
 };
 

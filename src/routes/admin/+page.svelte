@@ -130,7 +130,7 @@
                         {#if openId === b.id}
                             <div class="detail">
                                 <dl>
-                                    <div><dt>Phone</dt><dd><a href="tel:{b.client?.phone_e164}">{showPhone(b.client?.phone_e164)}</a></dd></div>
+                                    <div><dt>Phone</dt><dd>{#if b.client?.phone_e164}<a href="tel:{b.client.phone_e164}">{showPhone(b.client.phone_e164)}</a>{:else}<span class="muted">No phone</span>{/if}</dd></div>
                                     {#if b.client?.email}
                                         <div><dt>Email</dt><dd><a href="mailto:{b.client.email}">{b.client.email}</a>{#if b.client.email_verified} <span class="tag">Google</span>{/if}</dd></div>
                                     {/if}

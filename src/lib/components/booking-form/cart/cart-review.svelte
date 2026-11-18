@@ -55,7 +55,7 @@
         <dt>Your details</dt>
         <dd>
             {c.firstName} {c.lastName}
-            <span class="sub">{c.phone}{#if c.email}{" · "}{c.email}{/if}</span>
+            <span class="sub">{[c.phone.trim(), c.email.trim()].filter(Boolean).join(' · ')}</span>
             {#if cartState.account}<span class="sub">Booking linked to your Google account</span>{/if}
             {#if c.notes}<span class="sub note">"{c.notes}"</span>{/if}
         </dd>
