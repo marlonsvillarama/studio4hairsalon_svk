@@ -1,5 +1,7 @@
 // Helpers for the /admin pages. Everything is shown in salon time.
 
+import { salonInstant } from '$lib/data/availability';
+
 export const SALON_TZ = 'Pacific/Auckland';
 
 const fmt = (opts) => new Intl.DateTimeFormat('en-NZ', { timeZone: SALON_TZ, ...opts });
@@ -53,3 +55,88 @@ export const slugify = (name) => name
 /** Soft-removed rows keep a suffix on their slug so the name can be reused. */
 export const removedSlug = (slug, id) => `${slug}--removed-${id}`;
 export const restoredSlug = (slug) => slug.replace(/--removed-\d+$/, '');
+
+// ─── calendar helpers (dates are "YYYY-MM-DD" in salon time) ─────────────
+
+const isoToUtc = (iso) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+};
+const utcToIso = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+export const addDays = (iso, n) => utcToIso(isoToUtc(iso) + n * 86_400_000);
+export const weekdayOf = (iso) => new Date(isoToUtc(iso)).getUTCDay();          // 0 = Sunday
+export const startOfWeek = (iso) => addDays(iso, -((weekdayOf(iso) + 6) % 7));  // Monday
+export const addMonths = (iso, n) => {
+    const d = new Date(isoToUtc(iso));
+    return utcToIso(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
+};
+export const startOfMonth = (iso) => `${iso.slice(0, 7)}-01`;
+
+/** The 42 days (6 weeks, Monday first) shown in a month grid. */
+export const monthGrid = (iso) => {
+    const first = startOfWeek(startOfMonth(iso));
+    return Array.from({ length: 42 }, (_, i) => addDays(first, i));
+};
+
+/** Minutes since salon midnight of `iso` for an instant (can be <0 or >1440). */
+export const minutesFrom = (iso, instant, dayStartMs) => (new Date(instant).getTime() - dayStartMs) / 60_000;
+
+/** Toolbar heading for the current view. */
+export const rangeTitle = (view, iso) => {
+    const d = new Date(isoToUtc(iso));
+    const fmtUtc = (opts) => new Intl.DateTimeFormat('en-NZ', { timeZone: 'UTC', ...opts });
+    if (view === 'day') return fmtUtc({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+    if (view === 'month') return fmtUtc({ month: 'long', year: 'numeric' }).format(d);
+    const start = new Date(isoToUtc(startOfWeek(iso)));
+    const end = new Date(isoToUtc(addDays(startOfWeek(iso), 6)));
+    const sameMonth = start.getUTCMonth() === end.getUTCMonth();
+    return sameMonth
+        ? `${start.getUTCDate()}–${fmtUtc({ day: 'numeric', month: 'long', year: 'numeric' }).format(end)}`
+        : `${fmtUtc({ day: 'numeric', month: 'short' }).format(start)} – ${fmtUtc({ day: 'numeric', month: 'short', year: 'numeric' }).format(end)}`;
+};
+
+/** Short day label for column headers, e.g. "Thu 19". */
+export const dayLabel = (iso) =>
+    new Intl.DateTimeFormat('en-NZ', { timeZone: 'UTC', weekday: 'short', day: 'numeric' }).format(new Date(isoToUtc(iso)));
+
+export const STATUS_LABEL = { confirmed: 'Confirmed', cancelled: 'Cancelled', completed: 'Completed', no_show: 'No-show' };
+export const isInactive = (b) => b.status === 'cancelled' || b.status === 'no_show';
+
+// ─── time off on a given day ─────────────────────────────────────────────
+
+/** 750 → "12:30" */
+export const minutesToHHMM = (m) =>
+    `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+
+/**
+ * Time off that touches salon day `iso`, as minutes after salon midnight,
+ * clipped to that day. `fullDay` is true when the blocks cover the day's
+ * opening hours (or the whole day if the salon is closed), i.e. a day off.
+ * @returns {{ blocks: { start: number, end: number, reason: string }[], fullDay: boolean, reason: string }}
+ */
+export function blocksForDay(iso, timeOff, hours) {
+    const dayStart = salonInstant(iso, '00:00', SALON_TZ).getTime();
+    const dayLen = (salonInstant(addDays(iso, 1), '00:00', SALON_TZ).getTime() - dayStart) / 60_000;
+    const blocks = (timeOff ?? [])
+        .map(t => ({
+            start: Math.max(0, (new Date(t.starts_at).getTime() - dayStart) / 60_000),
+            end: Math.min(dayLen, (new Date(t.ends_at).getTime() - dayStart) / 60_000),
+            reason: t.reason ?? ''
+        }))
+        .filter(b => b.end > b.start)
+        .sort((a, z) => a.start - z.start);
+
+    // On a day the salon is closed anyway, time off changes nothing: show "Closed".
+    const h = hours?.[weekdayOf(iso)];
+    if (!h) return { blocks: [], fullDay: false, reason: '' };
+    const [from, to] = [h.open, h.close];
+    let reach = from;
+    for (const b of blocks) {
+        if (b.start > reach) break;
+        reach = Math.max(reach, b.end);
+    }
+    const fullDay = blocks.length > 0 && reach >= to;
+    const reason = blocks.find(b => b.start <= from && b.end >= Math.min(to, from + 1))?.reason || blocks[0]?.reason || '';
+    return { blocks, fullDay, reason };
+}

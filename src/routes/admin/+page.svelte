@@ -1,371 +1,277 @@
 <script>
-    import { onMount } from 'svelte';
+    import { tick } from 'svelte';
+    import { page } from '$app/state';
+    import { goto } from '$app/navigation';
     import { getSupabase } from '$lib/supabase';
     import { salonInstant } from '$lib/data/availability';
-    import { SALON_TZ, salonDay, salonTime, showTime, showDay, dollars, showPhone, adminError } from '$lib/admin';
+    import {
+        SALON_TZ, salonDay, adminError, addDays, addMonths, startOfWeek, monthGrid, rangeTitle, isInactive, blocksForDay
+    } from '$lib/admin';
+    import DayTimeline from '$lib/components/admin/day-timeline.svelte';
+    import MonthGrid from '$lib/components/admin/month-grid.svelte';
+    import BookingDetail from '$lib/components/admin/booking-detail.svelte';
 
     const sb = getSupabase();
-    let tab = $state('upcoming');      // upcoming | past
+    const VIEWS = [
+        { id: 'day', label: 'Day' },
+        { id: 'week', label: 'Week' },
+        { id: 'month', label: 'Month' }
+    ];
+    const today = salonDay(Date.now());
+
+    // ─── view + date live in the URL (?view=week&date=2026-11-19) ─────────
+    let view = $derived(VIEWS.some(v => v.id === page.url.searchParams.get('view')) ? page.url.searchParams.get('view') : 'day');
+    let date = $derived(/^\d{4}-\d{2}-\d{2}$/.test(page.url.searchParams.get('date') ?? '') ? page.url.searchParams.get('date') : today);
+
+    function go(nextView, nextDate) {
+        const params = new URLSearchParams(page.url.searchParams);
+        params.set('view', nextView);
+        params.set('date', nextDate);
+        goto(`?${params}`, { replaceState: true, keepFocus: true, noScroll: true });
+    }
+    const step = (dir) => go(view, view === 'day' ? addDays(date, dir) : view === 'week' ? addDays(date, 7 * dir) : addMonths(date, dir));
+    const openDay = (iso) => go('day', iso);
+    // "Today" is redundant when today is already on screen.
+    let showsToday = $derived(
+        view === 'day' ? date === today
+        : view === 'week' ? startOfWeek(date) === startOfWeek(today)
+        : date.slice(0, 7) === today.slice(0, 7)
+    );
+
+    // ─── visible range ──────────────────────────────────────────────────
+    let days = $derived(view === 'day' ? [date] : view === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(date), i)) : monthGrid(date));
+    let rangeStart = $derived(salonInstant(days[0], '00:00', SALON_TZ).toISOString());
+    let rangeEnd = $derived(salonInstant(addDays(days.at(-1), 1), '00:00', SALON_TZ).toISOString());
+
+    // ─── data ───────────────────────────────────────────────────────────
     let bookings = $state([]);
+    let timeOff = $state([]);
+    let hours = $state({});
     let loading = $state(true);
     let loadError = $state('');
-    let openId = $state(null);
-    let busyId = $state(null);
-    let actionError = $state('');
-    let cancelReason = $state('');
-    let mode = $state('');             // '' | cancel | reschedule
-    let newDate = $state('');
-    let newTime = $state('');
+    let showCancelled = $state(true);
+    let selectedId = $state(null);
 
-    // True when the booked service has since been turned off or removed
-    // (directly, or through its category). The booking itself is unaffected.
-    const retired = (item) => {
-        const s = item.service;
-        return !s || !s.is_active || !!s.deleted_at || !s.category?.is_active || !!s.category?.deleted_at;
-    };
+    const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
-    const statusLabel = { confirmed: 'Confirmed', cancelled: 'Cancelled', completed: 'Completed', no_show: 'No-show' };
-
-    async function load() {
+    async function load(from = rangeStart, to = rangeEnd) {
         loading = true;
         loadError = '';
-        const startOfToday = salonInstant(salonDay(Date.now()), '00:00', SALON_TZ).toISOString();
-        let q = sb.from('s4_bookings')
-            .select(`id, reference, starts_at, ends_at, status, total_cents, has_variable_price, gold_card, notes, cancel_reason, source,
-                     client:s4_clients ( first_name, last_name, phone_e164, email, email_verified ),
-                     items:s4_booking_items ( name, price_cents, gold_card_applied, sort_order,
-                         service:s4_services ( is_active, deleted_at, category:s4_categories ( is_active, deleted_at ) ) )`);
-        q = tab === 'upcoming'
-            ? q.gte('starts_at', startOfToday).order('starts_at', { ascending: true }).limit(200)
-            : q.lt('starts_at', startOfToday).order('starts_at', { ascending: false }).limit(100);
-        const { data, error } = await q;
+        const [b, t, h] = await Promise.all([
+            sb.from('s4_bookings')
+                .select(`id, reference, starts_at, ends_at, status, total_cents, has_variable_price, gold_card, notes, cancel_reason, source,
+                         client:s4_clients ( first_name, last_name, phone_e164, email, email_verified ),
+                         items:s4_booking_items ( name, price_cents, gold_card_applied, sort_order,
+                             service:s4_services ( is_active, deleted_at, category:s4_categories ( is_active, deleted_at ) ) )`)
+                .gte('starts_at', from).lt('starts_at', to)
+                .order('starts_at'),
+            sb.from('s4_time_off').select('id, starts_at, ends_at, reason').lt('starts_at', to).gt('ends_at', from),
+            sb.from('s4_business_hours').select('weekday, is_open, opens_at, closes_at')
+        ]);
         loading = false;
-        if (error) {
-            loadError = adminError(error);
-            return;
-        }
-        bookings = data;
+        if (b.error || t.error || h.error) { loadError = adminError(b.error || t.error || h.error); return; }
+        bookings = b.data;
+        timeOff = t.data;
+        hours = Object.fromEntries(h.data.map(d => [d.weekday, d.is_open ? { open: toMinutes(d.opens_at), close: toMinutes(d.closes_at) } : null]));
     }
 
-    onMount(load);
+    // Reload whenever the visible range changes.
+    $effect(() => { load(rangeStart, rangeEnd); });
 
-    let groups = $derived.by(() => {
-        const map = new Map();
-        for (const b of bookings) {
-            const key = salonDay(b.starts_at);
-            if (!map.has(key)) map.set(key, []);
-            map.get(key).push(b);
-        }
-        return [...map.entries()];
-    });
+    let visible = $derived(showCancelled ? bookings : bookings.filter(b => !isInactive(b)));
+    let selected = $derived(bookings.find(b => b.id === selectedId) ?? null);
+    let dayCount = $derived(visible.filter(b => !isInactive(b)).length);
 
-    function toggle(b) {
-        openId = openId === b.id ? null : b.id;
-        mode = '';
-        actionError = '';
-        cancelReason = '';
-        newDate = salonDay(b.starts_at);
-        newTime = salonTime(b.starts_at);
+    let detailEl = $state();
+    async function select(b) {
+        selectedId = b.id;
+        await tick();
+        // On narrow screens the panel sits below the calendar: bring it into view.
+        if (window.matchMedia('(max-width: 63.99rem)').matches) detailEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
-    async function update(b, patch) {
-        busyId = b.id;
-        actionError = '';
-        const { error } = await sb.from('s4_bookings').update(patch).eq('id', b.id);
-        busyId = null;
-        if (error) {
-            actionError = adminError(error);
-            return false;
-        }
-        mode = '';
-        await load();
-        return true;
-    }
-
-    const setStatus = (b, status) => update(b, { status });
-    const cancel = (b) => update(b, {
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancel_reason: cancelReason.trim() || null
-    });
-    function reschedule(b) {
-        const length = new Date(b.ends_at) - new Date(b.starts_at);
-        const start = salonInstant(newDate, newTime, SALON_TZ);
-        return update(b, { starts_at: start.toISOString(), ends_at: new Date(start.getTime() + length).toISOString() });
-    }
-
-    const switchTab = (t) => { tab = t; openId = null; load(); };
+    const closeDetail = () => selectedId = null;
+    const onkeydown = (e) => { if (e.key === 'Escape' && selectedId) closeDetail(); };
 </script>
 
-<div class="head">
-    <h1>Bookings</h1>
-    <div class="tabs" role="tablist" aria-label="Which bookings">
-        <button type="button" role="tab" aria-selected={tab === 'upcoming'} onclick={() => switchTab('upcoming')}>Today & upcoming</button>
-        <button type="button" role="tab" aria-selected={tab === 'past'} onclick={() => switchTab('past')}>Past</button>
+<svelte:window {onkeydown} />
+
+<header class="toolbar">
+    <div class="title">
+        <h1>Bookings</h1>
+        <p class="range">
+            {rangeTitle(view, date)}
+            {#if !loading && view !== 'month'}<span class="muted">· {dayCount} {dayCount === 1 ? 'booking' : 'bookings'}</span>{/if}
+        </p>
     </div>
+
+    <div class="controls">
+        <div class="nav" role="group" aria-label="Change {view}">
+            <button type="button" class="icon-btn" aria-label="Previous {view}" onclick={() => step(-1)}>
+                <i class="ph ph-caret-left" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="today-btn" disabled={showsToday}
+                onclick={() => go(view, today)}>Today</button>
+            <button type="button" class="icon-btn" aria-label="Next {view}" onclick={() => step(1)}>
+                <i class="ph ph-caret-right" aria-hidden="true"></i>
+            </button>
+            <label class="jump">
+                <span class="sr-only">Go to date</span>
+                <input type="date" value={date} onchange={(e) => e.currentTarget.value && go(view, e.currentTarget.value)} />
+            </label>
+        </div>
+
+        <div class="views" role="tablist" aria-label="Calendar view">
+            {#each VIEWS as v}
+                <button type="button" role="tab" aria-selected={view === v.id} onclick={() => go(v.id, date)}>{v.label}</button>
+            {/each}
+        </div>
+
+        <label class="toggle"><input type="checkbox" bind:checked={showCancelled} /> Show cancelled</label>
+    </div>
+</header>
+
+<div class="layout" class:has-detail={!!selected}>
+    <section class="calendar" aria-label="{rangeTitle(view, date)} calendar" aria-busy={loading}>
+        {#if loadError}
+            <div class="panel"><p class="error">{loadError}</p><button type="button" class="secondary" onclick={() => load()}>Try again</button></div>
+        {:else if view === 'month'}
+            <MonthGrid month={date} bookings={visible} {timeOff} {hours} {today} ondayclick={openDay} />
+        {:else}
+            <DayTimeline {days} bookings={visible} {timeOff} {hours} {today}
+                compact={view === 'week'} {selectedId}
+                onselect={select}
+                ondayclick={view === 'week' ? openDay : undefined} />
+            {#if view === 'day' && !loading && visible.length === 0}
+                {@const dayOff = blocksForDay(date, timeOff, hours)}
+                <p class="empty muted">
+                    {#if dayOff.fullDay}Day off{dayOff.reason ? `: ${dayOff.reason}` : ''}. No bookings.
+                    {:else}No bookings{hours[new Date(`${date}T00:00:00Z`).getUTCDay()] ? '' : '. The salon is closed this day'}.{/if}
+                </p>
+            {/if}
+        {/if}
+    </section>
+
+    {#if selected}
+        <aside class="side" bind:this={detailEl} aria-label="Booking details">
+            <BookingDetail booking={selected} onchanged={() => load()} onclose={closeDetail} />
+        </aside>
+    {/if}
 </div>
 
-{#if loading}
-    <p class="muted" role="status">Loading bookings…</p>
-{:else if loadError}
-    <div class="panel"><p class="error">{loadError}</p><button type="button" class="secondary" onclick={load}>Try again</button></div>
-{:else if groups.length === 0}
-    <div class="panel"><p class="muted">{tab === 'upcoming' ? 'No bookings from today onwards yet.' : 'No past bookings.'}</p></div>
-{:else}
-    {#each groups as [day, list] (day)}
-        <section class="day">
-            <h2>{showDay(list[0].starts_at)} <span class="count">{list.length} {list.length === 1 ? 'booking' : 'bookings'}</span></h2>
-            <ul>
-                {#each list as b (b.id)}
-                    <li class="booking" class:inactive={b.status === 'cancelled' || b.status === 'no_show'}>
-                        <button type="button" class="row" aria-expanded={openId === b.id} onclick={() => toggle(b)}>
-                            <span class="time">{showTime(b.starts_at)}–{showTime(b.ends_at)}</span>
-                            <span class="who">
-                                <strong>{b.client?.first_name} {b.client?.last_name ?? ''}</strong>
-                                <span class="services">{b.items.toSorted((a, z) => a.sort_order - z.sort_order).map(i => i.name).join(', ')}</span>
-                            </span>
-                            <span class="status s-{b.status}">{statusLabel[b.status]}</span>
-                        </button>
-
-                        {#if openId === b.id}
-                            <div class="detail">
-                                <dl>
-                                    <div><dt>Phone</dt><dd>{#if b.client?.phone_e164}<a href="tel:{b.client.phone_e164}">{showPhone(b.client.phone_e164)}</a>{:else}<span class="muted">No phone</span>{/if}</dd></div>
-                                    {#if b.client?.email}
-                                        <div><dt>Email</dt><dd><a href="mailto:{b.client.email}">{b.client.email}</a>{#if b.client.email_verified} <span class="tag">Google</span>{/if}</dd></div>
-                                    {/if}
-                                    <div><dt>Services</dt><dd>
-                                        <ul class="items">
-                                            {#each b.items.toSorted((a, z) => a.sort_order - z.sort_order) as i}
-                                                <li><span>{i.name}{#if i.gold_card_applied} <span class="tag">Gold Card</span>{/if}{#if retired(i)} <span class="tag retired">No longer offered</span>{/if}</span><span>{dollars(i.price_cents)}</span></li>
-                                            {/each}
-                                        </ul>
-                                    </dd></div>
-                                    <div><dt>Total</dt><dd><strong>{b.has_variable_price ? 'from ' : ''}{dollars(b.total_cents)}</strong></dd></div>
-                                    {#if b.notes}<div><dt>Notes</dt><dd class="notes">"{b.notes}"</dd></div>{/if}
-                                    {#if b.cancel_reason}<div><dt>Cancelled</dt><dd>{b.cancel_reason}</dd></div>{/if}
-                                    <div><dt>Reference</dt><dd class="ref">{b.reference}</dd></div>
-                                </dl>
-
-                                {#if b.status === 'confirmed'}
-                                    {#if mode === 'cancel'}
-                                        <form class="inline" onsubmit={(e) => { e.preventDefault(); cancel(b); }}>
-                                            <label for="reason-{b.id}">Reason (optional)</label>
-                                            <input id="reason-{b.id}" bind:value={cancelReason} placeholder="e.g. client called to cancel" />
-                                            <div class="actions">
-                                                <button type="submit" class="danger" disabled={busyId === b.id}>Cancel booking</button>
-                                                <button type="button" class="secondary" onclick={() => mode = ''}>Keep it</button>
-                                            </div>
-                                        </form>
-                                    {:else if mode === 'reschedule'}
-                                        <form class="inline" onsubmit={(e) => { e.preventDefault(); reschedule(b); }}>
-                                            <div class="pair">
-                                                <label>New date <input type="date" required bind:value={newDate} /></label>
-                                                <label>New start time <input type="time" step="900" required bind:value={newTime} /></label>
-                                            </div>
-                                            <p class="muted">Keeps the same length. Overlapping another booking isn't allowed.</p>
-                                            <div class="actions">
-                                                <button type="submit" class="primary" disabled={busyId === b.id}>Move booking</button>
-                                                <button type="button" class="secondary" onclick={() => mode = ''}>Back</button>
-                                            </div>
-                                        </form>
-                                    {:else}
-                                        <div class="actions">
-                                            <button type="button" class="primary" disabled={busyId === b.id} onclick={() => setStatus(b, 'completed')}>Mark completed</button>
-                                            <button type="button" class="secondary" onclick={() => mode = 'reschedule'}>Reschedule</button>
-                                            <button type="button" class="secondary" disabled={busyId === b.id} onclick={() => setStatus(b, 'no_show')}>No-show</button>
-                                            <button type="button" class="danger" onclick={() => mode = 'cancel'}>Cancel…</button>
-                                        </div>
-                                    {/if}
-                                {:else}
-                                    <div class="actions">
-                                        <button type="button" class="secondary" disabled={busyId === b.id} onclick={() => setStatus(b, 'confirmed')}>Set back to confirmed</button>
-                                    </div>
-                                {/if}
-                                {#if actionError}<p class="error" role="alert">{actionError}</p>{/if}
-                            </div>
-                        {/if}
-                    </li>
-                {/each}
-            </ul>
-        </section>
-    {/each}
-{/if}
-
 <style>
-    .head {
+    .toolbar {
+        align-items: flex-end;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 1.5rem;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+    }
+    .range {
+        color: var(--adm-text);
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+    .range .muted {
+        font-weight: 400;
+    }
+    .controls {
         align-items: center;
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
+        gap: 0.75rem 1rem;
     }
-    .tabs {
+    .nav {
+        align-items: center;
         display: flex;
         gap: 0.25rem;
     }
-    .tabs button {
-        border: 1px solid var(--input-border);
+    .icon-btn,
+    .today-btn,
+    .views button {
+        background-color: var(--adm-surface);
+        border: 1px solid var(--adm-border-strong);
         border-radius: 0.25rem;
+        color: var(--adm-text);
         cursor: pointer;
-        font-weight: 500;
-        min-height: 2.75rem;
-        padding: 0 0.875rem;
-        background-color: var(--white);
-    }
-    .tabs button[aria-selected="true"] {
-        background-color: var(--darkest);
-        border-color: var(--darkest);
-        color: var(--white);
-    }
-    .day {
-        margin-bottom: 2rem;
-    }
-    .day h2 {
-        margin-bottom: 0.625rem;
-    }
-    .count {
-        color: var(--dark);
-        font-size: 0.875rem;
-        font-weight: 400;
-        margin-left: 0.5rem;
-    }
-    .day > ul {
-        list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .booking {
-        background-color: var(--white);
-        border: 1px solid var(--light);
-        border-radius: 0.375rem;
-    }
-    .booking.inactive .row {
-        opacity: 0.6;
-    }
-    .row {
-        align-items: center;
-        cursor: pointer;
-        display: grid;
-        gap: 0.25rem 1rem;
-        grid-template-columns: 8.5rem 1fr auto;
-        padding: 0.875rem 1rem;
-        text-align: left;
-        width: 100%;
-    }
-    @media (max-width: 40rem) {
-        .row {
-            grid-template-columns: 1fr auto;
-        }
-        .row .who {
-            grid-column: 1 / -1;
-            grid-row: 2;
-        }
-    }
-    .time {
-        color: var(--darkest);
-        font-variant-numeric: tabular-nums;
         font-weight: 600;
+        min-height: 2.75rem;
     }
-    .who {
+    .icon-btn {
+        display: grid;
+        font-size: 1.125rem;
+        place-items: center;
+        width: 2.75rem;
+    }
+    .today-btn {
+        padding: 0 0.875rem;
+    }
+    .today-btn:disabled {
+        color: var(--adm-text-muted);
+        cursor: default;
+    }
+    .icon-btn:hover,
+    .today-btn:not(:disabled):hover,
+    .views button:hover {
+        border-color: var(--adm-text-muted);
+    }
+    .jump {
+        margin-left: 0.25rem;
+    }
+    .views {
         display: flex;
-        flex-direction: column;
+    }
+    .views button {
+        border-radius: 0;
+        margin-left: -1px;
+        padding: 0 1rem;
+    }
+    .views button:first-child {
+        border-radius: 0.25rem 0 0 0.25rem;
+        margin-left: 0;
+    }
+    .views button:last-child {
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    .views button[aria-selected="true"] {
+        background-color: var(--adm-inverse-bg);
+        border-color: var(--adm-inverse-bg);
+        color: var(--adm-inverse-text);
+        position: relative;
+    }
+    .toggle {
+        align-items: center;
+        display: flex;
+        font-size: 0.9375rem;
+        gap: 0.5rem;
+        min-height: 2.75rem;
+    }
+
+    .layout {
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: minmax(0, 1fr);
+    }
+    @media (min-width: 64rem) {
+        .layout.has-detail {
+            grid-template-columns: minmax(0, 1fr) 24rem;
+        }
+        .side {
+            align-self: start;
+            max-height: calc(100vh - 3rem);
+            overflow-y: auto;
+            position: sticky;
+            top: 1.5rem;
+        }
+    }
+    .calendar {
         min-width: 0;
     }
-    .services {
-        color: var(--dark);
-        font-size: 0.875rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .calendar[aria-busy="true"] {
+        opacity: 0.6;
+        transition: opacity 150ms ease;
     }
-    .status {
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.25rem 0.625rem;
-        white-space: nowrap;
-    }
-    .s-confirmed { background-color: var(--color-accent-100); color: var(--color-accent-800); }
-    .s-completed { background-color: #e3f4e8; color: #1d6b38; }
-    .s-cancelled, .s-no_show { background-color: var(--light); color: var(--dark); }
-    .detail {
-        border-top: 1px solid var(--light);
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
-    }
-    dl {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    dl > div {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: 6rem 1fr;
-    }
-    dt {
-        color: var(--dark);
-        font-size: 0.875rem;
-    }
-    dd a {
-        color: var(--darkest);
-        font-weight: 600;
-        text-decoration: underline;
-        text-decoration-color: var(--color-accent-600);
-        text-underline-offset: 3px;
-    }
-    .items {
-        list-style: none;
-    }
-    .items li {
-        display: flex;
-        gap: 1rem;
-        justify-content: space-between;
-    }
-    .notes {
-        font-style: italic;
-    }
-    .ref {
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0.04em;
-    }
-    .tag {
-        background-color: var(--color-accent-100);
-        border-radius: 0.25rem;
-        color: var(--color-accent-800);
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.0625rem 0.375rem;
-    }
-    .tag.retired {
-        background-color: var(--light);
-        color: var(--dark);
-    }
-    .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-    .inline {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        max-width: 32rem;
-    }
-    .inline label {
-        display: flex;
-        flex-direction: column;
-        font-weight: 600;
-        gap: 0.25rem;
-    }
-    .pair {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
+    .empty {
+        margin-top: 0.75rem;
     }
 </style>

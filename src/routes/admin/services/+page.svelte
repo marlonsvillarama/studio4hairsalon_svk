@@ -1,7 +1,11 @@
 <script>
     import { onMount } from 'svelte';
+    import { page } from '$app/state';
     import { getSupabase } from '$lib/supabase';
-    import { adminError } from '$lib/admin';
+    import { adminError, dollars } from '$lib/admin';
+    import { formatDuration } from '$lib/data/services';
+    import Modal from '$lib/components/admin/modal.svelte';
+    import Switch from '$lib/components/admin/switch.svelte';
 
     const sb = getSupabase();
     let categories = $state([]);
@@ -9,18 +13,27 @@
     let loading = $state(true);
     let error = $state('');
     let busyId = $state(null);
-    let rowMsg = $state({});
-    let confirmId = $state(null);
+    let rowError = $state({});
     let showRemoved = $state(false);
+    let status = $state(null);      // { kind: 'ok' | 'error', text }
 
-    // One "add" form open at a time, keyed by category id.
-    let addingTo = $state(null);
-    let draft = $state(blankDraft());
-    let draftError = $state('');
-    let savingDraft = $state(false);
+    // Toolbar
+    let search = $state('');
+    let filter = $state('all');     // 'all' or a category id (string)
 
-    function blankDraft() {
-        return { name: '', price: '', gold: '', duration_min: 30, price_is_from: false, is_addon: false, is_active: true };
+    // Add/Edit modal
+    let formOpen = $state(false);
+    let form = $state(blankForm());
+    let formError = $state('');
+    let saving = $state(false);
+
+    // Remove confirmation
+    let confirmOpen = $state(false);
+    let toRemove = $state(null);
+
+    function blankForm(categoryId = null) {
+        return { id: null, category_id: categoryId, name: '', price: '', gold: '', duration_min: 30,
+                 price_is_from: false, is_addon: false, is_active: true };
     }
 
     const toRow = (r) => ({
@@ -42,28 +55,47 @@
         categories = c.data;
         rows = s.data.map(toRow);
     }
-    onMount(load);
+    onMount(() => {
+        // Arriving from the Categories page: /admin/services?category=3
+        const fromLink = page.url.searchParams.get('category');
+        if (fromLink) filter = fromLink;
+        load();
+    });
 
     let liveCategories = $derived(categories.filter(c => !c.deleted_at));
     let removedCategories = $derived(categories.filter(c => c.deleted_at));
     let removedServices = $derived(rows.filter(r => r.deleted_at));
-    const servicesIn = (categoryId) => rows.filter(r => r.category_id === categoryId && !r.deleted_at);
+    const categoryName = (id) => categories.find(c => c.id === id)?.name ?? 'Unknown';
 
-    const say = (id, msg) => {
-        rowMsg = { ...rowMsg, [id]: msg };
-        if (msg.ok) setTimeout(() => { if (rowMsg[id]?.ok === msg.ok) rowMsg = { ...rowMsg, [id]: {} }; }, 2500);
-    };
+    // Groups shown in the table, after search + category filter.
+    let term = $derived(search.trim().toLowerCase());
+    const matches = (r) => !term || r.name.toLowerCase().includes(term);
+    let groups = $derived(
+        [...liveCategories.map(c => ({ c, removedCategory: false })), ...removedCategories.map(c => ({ c, removedCategory: true }))]
+            .filter(g => filter === 'all' || String(g.c.id) === filter)
+            .map(g => ({ ...g, services: rows.filter(r => r.category_id === g.c.id && !r.deleted_at && matches(r)) }))
+            .filter(g => !g.removedCategory || g.services.length)
+            .filter(g => !term || g.services.length)
+    );
+    let shownCount = $derived(groups.reduce((n, g) => n + g.services.length, 0));
+
+    function announce(kind, text) {
+        status = { kind, text };
+        if (kind === 'ok') setTimeout(() => { if (status?.text === text) status = null; }, 3000);
+    }
 
     /** Shared validation for edits and new services. Returns the DB fields, or an error string. */
     function toFields(r) {
         const price = Number(r.price);
         const gold = r.gold === '' || r.gold == null ? null : Number(r.gold);
         if (!String(r.name).trim()) return 'Give the service a name.';
+        if (!r.category_id) return 'Choose a category.';
         if (r.price === '' || !(price >= 0)) return 'Enter a price.';
         if (gold != null && !(gold >= 0 && gold < price)) return 'Gold Card price must be lower than the standard price.';
         if (!(Number(r.duration_min) > 0)) return 'Enter a duration in minutes.';
         return {
             name: String(r.name).trim(),
+            category_id: Number(r.category_id),
             price_cents: Math.round(price * 100),
             gold_card_price_cents: gold == null ? null : Math.round(gold * 100),
             duration_min: Number(r.duration_min),
@@ -73,36 +105,56 @@
         };
     }
 
-    async function save(r) {
-        const fields = toFields(r);
-        if (typeof fields === 'string') { say(r.id, { error: fields }); return; }
-        busyId = r.id;
-        const { error: e } = await sb.from('s4_services')
-            .update({ ...fields, category_id: Number(r.category_id) })
-            .eq('id', r.id);
-        busyId = null;
-        say(r.id, e ? { error: adminError(e) } : { ok: 'Saved' });
-        if (!e) load();
+    // ─── Add / Edit ─────────────────────────────────────────────────────
+    function openAdd(categoryId = null) {
+        const preset = categoryId ?? (filter !== 'all' ? Number(filter) : liveCategories[0]?.id ?? null);
+        form = blankForm(preset);
+        formError = '';
+        formOpen = true;
+    }
+    function openEdit(r) {
+        form = { id: r.id, category_id: r.category_id, name: r.name, price: r.price, gold: r.gold, duration_min: r.duration_min,
+                 price_is_from: r.price_is_from, is_addon: r.is_addon, is_active: r.is_active };
+        formError = '';
+        formOpen = true;
     }
 
-    function openAdd(categoryId) {
-        addingTo = categoryId;
-        draft = blankDraft();
-        draftError = '';
-    }
-
-    async function add(e, categoryId) {
+    async function submitForm(e) {
         e.preventDefault();
-        const fields = toFields(draft);
-        if (typeof fields === 'string') { draftError = fields; return; }
-        savingDraft = true;
-        const last = Math.max(0, ...servicesIn(categoryId).map(r => r.sort_order ?? 0));
-        const { error: err } = await sb.from('s4_services')
-            .insert({ ...fields, category_id: categoryId, sort_order: last + 1 });
-        savingDraft = false;
-        if (err) { draftError = adminError(err); return; }
-        addingTo = null;
+        formError = '';
+        const fields = toFields(form);
+        if (typeof fields === 'string') { formError = fields; return; }
+        saving = true;
+        let err;
+        if (form.id) {
+            ({ error: err } = await sb.from('s4_services').update(fields).eq('id', form.id));
+        } else {
+            const inCategory = rows.filter(r => r.category_id === fields.category_id);
+            const last = Math.max(0, ...inCategory.map(r => r.sort_order ?? 0));
+            ({ error: err } = await sb.from('s4_services').insert({ ...fields, sort_order: last + 1 }));
+        }
+        saving = false;
+        if (err) { formError = adminError(err); return; }
+        formOpen = false;
+        announce('ok', form.id ? `Saved "${fields.name}".` : `Added "${fields.name}" to ${categoryName(fields.category_id)}.`);
         load();
+    }
+
+    // ─── Quick actions in the table ─────────────────────────────────────
+    async function toggleActive(r, value) {
+        busyId = r.id;
+        rowError = { ...rowError, [r.id]: '' };
+        const { error: err } = await sb.from('s4_services').update({ is_active: value }).eq('id', r.id);
+        busyId = null;
+        if (err) {
+            r.is_active = !value;   // put the switch back
+            rowError = { ...rowError, [r.id]: adminError(err) };
+        }
+    }
+
+    function askRemove(r) {
+        toRemove = r;
+        confirmOpen = true;
     }
 
     // Delete outright if never booked; otherwise keep it (soft-remove) so
@@ -118,268 +170,285 @@
             kept = true;
         }
         busyId = null;
-        confirmId = null;
-        if (err) { say(r.id, { error: adminError(err) }); return; }
-        await load();
-        if (kept) say(r.id, { ok: 'Removed from the menu. Kept for existing bookings.' });
+        confirmOpen = false;
+        if (err) { announce('error', adminError(err)); return; }
+        announce('ok', kept ? `Removed "${r.name}" from the menu. Kept for existing bookings.` : `Deleted "${r.name}".`);
+        load();
     }
 
     async function restore(r) {
         busyId = r.id;
         const { error: err } = await sb.from('s4_services').update({ deleted_at: null }).eq('id', r.id);
         busyId = null;
-        if (err) { say(r.id, { error: adminError(err) }); return; }
-        say(r.id, { ok: 'Restored. Tick "Bookable" and save to offer it again.' });
+        if (err) { announce('error', adminError(err)); return; }
+        announce('ok', `Restored "${r.name}". Turn on Bookable to offer it again.`);
         load();
     }
-
-    const categoryName = (id) => categories.find(c => c.id === id)?.name ?? 'Unknown';
 </script>
 
-<h1>Services & prices</h1>
-<p class="muted intro">
-    New and changed prices apply to online bookings straight away; the home page updates on the next site deploy.
-    Existing bookings keep the price they were booked at, and removing a service never removes appointments.
-</p>
+<div class="page-head">
+    <div>
+        <h1>Services & prices</h1>
+        <p>New and changed prices apply to online bookings straight away; the home page updates on the next site deploy. Existing bookings keep the price they were booked at.</p>
+    </div>
+    <button type="button" class="primary with-icon" onclick={() => openAdd()}>
+        <i class="ph ph-plus" aria-hidden="true"></i> Add service
+    </button>
+</div>
 
-{#snippet serviceRow(r)}
-    <form class="svc" class:off={!r.is_active} onsubmit={(e) => { e.preventDefault(); save(r); }}>
-        <label class="name">Service <input bind:value={r.name} required /></label>
-        <label>Price ($) <input type="number" min="0" step="0.5" bind:value={r.price} required /></label>
-        <label>Gold Card ($) <input type="number" min="0" step="0.5" bind:value={r.gold} placeholder="—" /></label>
-        <label>Minutes <input type="number" min="5" step="5" bind:value={r.duration_min} required /></label>
-        <label>Category
-            <select bind:value={r.category_id}>
-                {#each liveCategories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
-            </select>
-        </label>
-        <div class="flags">
-            <label class="check"><input type="checkbox" bind:checked={r.price_is_from} /> "from" price</label>
-            <label class="check"><input type="checkbox" bind:checked={r.is_addon} /> Add-on</label>
-            <label class="check"><input type="checkbox" bind:checked={r.is_active} /> Bookable</label>
-        </div>
-        <div class="save">
-            <button type="submit" class="secondary" disabled={busyId === r.id}>{busyId === r.id ? 'Saving…' : 'Save'}</button>
-            <button type="button" class="link-danger" onclick={() => confirmId = r.id}>Remove…</button>
-        </div>
-        {#if confirmId === r.id}
-            <div class="confirm" role="alert">
-                <p><strong>Remove "{r.name}"?</strong> Clients won't be able to book it. Any existing appointments for it stay in Bookings.</p>
-                <div class="save">
-                    <button type="button" class="danger" disabled={busyId === r.id} onclick={() => remove(r)}>Remove service</button>
-                    <button type="button" class="secondary" onclick={() => confirmId = null}>Keep it</button>
-                </div>
-            </div>
-        {/if}
-        {#if rowMsg[r.id]?.ok}<p class="ok msg" role="status">{rowMsg[r.id].ok}</p>{/if}
-        {#if rowMsg[r.id]?.error}<p class="error msg" role="alert">{rowMsg[r.id].error}</p>{/if}
-    </form>
-{/snippet}
+<div class="toolbar">
+    <label class="search">
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+        <span class="sr-only">Search services</span>
+        <input type="search" placeholder="Search services" bind:value={search} />
+    </label>
+    <label class="filter">
+        <span class="sr-only">Category</span>
+        <select bind:value={filter}>
+            <option value="all">All categories</option>
+            {#each liveCategories as c (c.id)}<option value={String(c.id)}>{c.name}</option>{/each}
+        </select>
+    </label>
+    {#if !loading}<span class="muted count" role="status">{shownCount} {shownCount === 1 ? 'service' : 'services'}</span>{/if}
+</div>
 
-{#if loading}
+{#if status}
+    <p class="status-line {status.kind}" role={status.kind === 'error' ? 'alert' : 'status'}>
+        <i class="ph ph-{status.kind === 'ok' ? 'check-circle' : 'warning-circle'}" aria-hidden="true"></i>{status.text}
+    </p>
+{/if}
+
+{#if loading && !rows.length}
     <p class="muted" role="status">Loading…</p>
 {:else if error}
     <p class="error">{error}</p>
+{:else if !groups.length}
+    <div class="panel"><p class="muted">{term ? 'No services match your search.' : 'No services yet. Add one to get started.'}</p></div>
 {:else}
-    {#each liveCategories as c (c.id)}
-        <section class="panel group">
-            <h2>
-                {c.name}
-                {#if !c.is_active}<span class="note">Category turned off: hidden from clients</span>{/if}
-            </h2>
-            {#each servicesIn(c.id) as r (r.id)}
-                {@render serviceRow(r)}
-            {:else}
-                <p class="muted empty">No services yet.</p>
-            {/each}
-
-            {#if addingTo === c.id}
-                <form class="svc new" onsubmit={(e) => add(e, c.id)}>
-                    <label class="name">New service <input bind:value={draft.name} required placeholder="e.g. Fringe trim" /></label>
-                    <label>Price ($) <input type="number" min="0" step="0.5" bind:value={draft.price} required /></label>
-                    <label>Gold Card ($) <input type="number" min="0" step="0.5" bind:value={draft.gold} placeholder="—" /></label>
-                    <label>Minutes <input type="number" min="5" step="5" bind:value={draft.duration_min} required /></label>
-                    <div class="flags">
-                        <label class="check"><input type="checkbox" bind:checked={draft.price_is_from} /> "from" price</label>
-                        <label class="check"><input type="checkbox" bind:checked={draft.is_addon} /> Add-on</label>
-                        <label class="check"><input type="checkbox" bind:checked={draft.is_active} /> Bookable</label>
-                    </div>
-                    <div class="save">
-                        <button type="submit" class="primary" disabled={savingDraft}>{savingDraft ? 'Adding…' : 'Add service'}</button>
-                        <button type="button" class="secondary" onclick={() => addingTo = null}>Cancel</button>
-                    </div>
-                    {#if draftError}<p class="error msg" role="alert">{draftError}</p>{/if}
-                </form>
-            {:else}
-                <div class="add-row">
-                    <button type="button" class="secondary" onclick={() => openAdd(c.id)}>
-                        <i class="ph ph-plus" aria-hidden="true"></i> Add a service to {c.name}
-                    </button>
-                </div>
-            {/if}
-        </section>
-    {/each}
-
-    {#each removedCategories as c (c.id)}
-        {#if servicesIn(c.id).length}
-            <section class="panel group muted-group">
-                <h2>{c.name} <span class="note">Category removed: these services aren't bookable</span></h2>
-                {#each servicesIn(c.id) as r (r.id)}
-                    {@render serviceRow(r)}
+    <table class="admin-table">
+        <caption class="sr-only">Services and prices, grouped by category</caption>
+        <thead>
+            <tr>
+                <th scope="col">Service</th>
+                <th scope="col" class="num">Price</th>
+                <th scope="col" class="num">Gold Card</th>
+                <th scope="col" class="num">Duration</th>
+                <th scope="col">Bookable</th>
+                <th scope="col" class="actions-cell"><span class="sr-only">Actions</span></th>
+            </tr>
+        </thead>
+        {#each groups as g (g.c.id)}
+            <tbody class:muted-group={g.removedCategory}>
+                <tr class="group-row">
+                    <th scope="colgroup" colspan="6">
+                        <span class="group-head">
+                            <span class="group-name">
+                                {g.c.name}
+                                {#if g.removedCategory}<span class="badge">Category removed</span>
+                                {:else if !g.c.is_active}<span class="badge warn">Turned off: hidden from clients</span>{/if}
+                            </span>
+                            {#if !g.removedCategory}
+                                <button type="button" class="secondary with-icon small" onclick={() => openAdd(g.c.id)}
+                                    aria-label="Add a service to {g.c.name}">
+                                    <i class="ph ph-plus" aria-hidden="true"></i> Add
+                                </button>
+                            {/if}
+                        </span>
+                    </th>
+                </tr>
+                {#each g.services as r (r.id)}
+                    <tr class:off={!r.is_active}>
+                        <td class="primary-cell">
+                            <strong>{r.name}</strong>
+                            <span class="badges">
+                                {#if r.price_is_from}<span class="badge">"from" price</span>{/if}
+                                {#if r.is_addon}<span class="badge"><i class="ph ph-plus-circle" aria-hidden="true"></i>Add-on</span>{/if}
+                            </span>
+                            {#if rowError[r.id]}<span class="error sub" role="alert">{rowError[r.id]}</span>{/if}
+                        </td>
+                        <td class="num" data-label="Price">{r.price_is_from ? 'from ' : ''}{dollars(r.price_cents)}</td>
+                        <td class="num" data-label="Gold Card">{r.gold_card_price_cents == null ? '—' : dollars(r.gold_card_price_cents)}</td>
+                        <td class="num" data-label="Duration">{formatDuration(r.duration_min)}</td>
+                        <td data-label="Bookable">
+                            <Switch bind:checked={r.is_active} label="{r.name} bookable" disabled={busyId === r.id}
+                                onchange={(v) => toggleActive(r, v)} />
+                        </td>
+                        <td class="actions-cell">
+                            <button type="button" class="icon-btn" aria-label="Edit {r.name}" onclick={() => openEdit(r)}>
+                                <i class="ph ph-pencil-simple" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="icon-btn danger-icon" aria-label="Remove {r.name}" onclick={() => askRemove(r)}>
+                                <i class="ph ph-trash" aria-hidden="true"></i>
+                            </button>
+                        </td>
+                    </tr>
+                {:else}
+                    <tr><td colspan="6" class="muted empty">No services yet.</td></tr>
                 {/each}
-            </section>
-        {/if}
-    {/each}
-
-    {#if removedServices.length}
-        <section class="removed">
-            <button type="button" class="toggle" aria-expanded={showRemoved} onclick={() => showRemoved = !showRemoved}>
-                <i class="ph ph-caret-{showRemoved ? 'down' : 'right'}" aria-hidden="true"></i>
-                Removed services ({removedServices.length})
-            </button>
-            {#if showRemoved}
-                <ul class="removed-list">
-                    {#each removedServices as r (r.id)}
-                        <li class="panel">
-                            <span><strong>{r.name}</strong> <span class="muted">· {categoryName(r.category_id)} · kept for existing bookings</span></span>
-                            <button type="button" class="secondary" disabled={busyId === r.id} onclick={() => restore(r)}>Restore</button>
-                            {#if rowMsg[r.id]?.ok}<p class="ok msg" role="status">{rowMsg[r.id].ok}</p>{/if}
-                            {#if rowMsg[r.id]?.error}<p class="error msg" role="alert">{rowMsg[r.id].error}</p>{/if}
-                        </li>
-                    {/each}
-                </ul>
-            {/if}
-        </section>
-    {/if}
+            </tbody>
+        {/each}
+    </table>
 {/if}
 
+{#if removedServices.length}
+    <section class="removed">
+        <button type="button" class="toggle" aria-expanded={showRemoved} onclick={() => showRemoved = !showRemoved}>
+            <i class="ph ph-caret-{showRemoved ? 'down' : 'right'}" aria-hidden="true"></i>
+            Removed services ({removedServices.length})
+        </button>
+        {#if showRemoved}
+            <table class="admin-table">
+                <caption class="sr-only">Removed services</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Service</th>
+                        <th scope="col">Category</th>
+                        <th scope="col" class="actions-cell"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each removedServices as r (r.id)}
+                        <tr>
+                            <td class="primary-cell"><strong>{r.name}</strong><span class="sub">Kept for existing bookings</span></td>
+                            <td data-label="Category">{categoryName(r.category_id)}</td>
+                            <td class="actions-cell">
+                                <button type="button" class="secondary with-icon" disabled={busyId === r.id} onclick={() => restore(r)}>
+                                    <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Restore
+                                </button>
+                            </td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+        {/if}
+    </section>
+{/if}
+
+<!-- Add / Edit -->
+<Modal bind:open={formOpen} title={form.id ? 'Edit service' : 'Add a service'}>
+    <form id="service-form" class="modal-form" onsubmit={submitForm} novalidate>
+        <label class="wide">
+            Name
+            <input bind:value={form.name} required placeholder="e.g. Fringe trim" autocomplete="off" />
+        </label>
+        <label class="wide">
+            Category
+            <select bind:value={form.category_id} required>
+                {#each liveCategories as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+            </select>
+        </label>
+        <label>
+            Price ($)
+            <input type="number" inputmode="decimal" min="0" step="0.5" bind:value={form.price} required />
+        </label>
+        <label>
+            Gold Card ($)
+            <input type="number" inputmode="decimal" min="0" step="0.5" bind:value={form.gold} placeholder="Optional" />
+        </label>
+        <label>
+            Minutes
+            <input type="number" inputmode="numeric" min="5" step="5" bind:value={form.duration_min} required />
+        </label>
+        <fieldset class="wide checks">
+            <legend class="sr-only">Options</legend>
+            <label class="check"><input type="checkbox" bind:checked={form.price_is_from} /> Price can vary (show "from")</label>
+            <label class="check"><input type="checkbox" bind:checked={form.is_addon} /> Add-on (only booked with another service)</label>
+        </fieldset>
+        <div class="wide"><Switch bind:checked={form.is_active} label="Bookable" showLabel /></div>
+        {#if formError}<p class="error wide" role="alert">{formError}</p>{/if}
+    </form>
+    {#snippet footer()}
+        <button type="button" class="secondary" onclick={() => formOpen = false}>Cancel</button>
+        <button type="submit" form="service-form" class="primary" disabled={saving}>
+            {saving ? 'Saving…' : form.id ? 'Save changes' : 'Add service'}
+        </button>
+    {/snippet}
+</Modal>
+
+<!-- Remove confirmation -->
+<Modal bind:open={confirmOpen} title="Remove service?">
+    {#if toRemove}
+        <p><strong>{toRemove.name}</strong> will no longer be bookable. Any existing appointments for it stay in Bookings.</p>
+    {/if}
+    {#snippet footer()}
+        <button type="button" class="secondary" onclick={() => confirmOpen = false}>Keep it</button>
+        <button type="button" class="danger" disabled={busyId === toRemove?.id} onclick={() => remove(toRemove)}>Remove service</button>
+    {/snippet}
+</Modal>
+
 <style>
-    .intro {
-        margin: 0.5rem 0 1.5rem;
-        max-width: 48rem;
-    }
-    .group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        margin-bottom: 1.25rem;
-    }
-    .group h2 {
-        align-items: baseline;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.25rem 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-    .note {
-        color: var(--color-accent-800);
-        font-size: 0.8125rem;
-        font-weight: 600;
-    }
-    .muted-group {
-        opacity: 0.85;
-    }
-    .empty {
-        padding: 0.5rem 0;
-    }
-    .svc {
-        align-items: end;
-        border-top: 1px solid var(--light);
-        display: grid;
-        gap: 0.5rem 0.75rem;
-        grid-template-columns: minmax(11rem, 1fr) 6rem 6rem 5rem 10rem;
-        padding: 0.875rem 0;
-    }
-    .svc.new {
-        background-color: var(--color-accent-50);
-        border: 1px solid var(--color-accent-300);
-        border-radius: 0.375rem;
-        margin-top: 0.5rem;
-        padding: 0.875rem;
-    }
-    .svc.off .name input {
-        color: var(--dark);
-    }
-    .flags,
-    .save,
-    .msg,
-    .confirm {
-        grid-column: 1 / -1;
-    }
-    .flags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0 1.25rem;
-    }
-    .save {
+    .toolbar {
         align-items: center;
         display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .search {
+        align-items: center;
+        display: flex;
+        flex: 1 1 16rem;
+        max-width: 26rem;
+        position: relative;
+    }
+    .search > i {
+        color: var(--adm-text-muted);
+        font-size: 1.125rem;
+        left: 0.75rem;
+        pointer-events: none;
+        position: absolute;
+    }
+    /* Attribute selector out-ranks the shared admin input padding. */
+    .search input[type="search"] {
+        padding-left: 2.375rem;
+        width: 100%;
+    }
+    .filter select {
+        min-width: 12rem;
+    }
+    .count {
+        font-size: 0.9375rem;
+    }
+    .group-head {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        justify-content: space-between;
+    }
+    .group-name {
+        align-items: center;
+        display: inline-flex;
         flex-wrap: wrap;
         gap: 0.5rem;
     }
-    @media (max-width: 56rem) {
-        .svc {
-            grid-template-columns: 1fr 1fr 1fr;
-        }
-        .svc .name {
-            grid-column: 1 / -1;
-        }
-    }
-    label {
-        color: var(--dark);
-        display: flex;
-        flex-direction: column;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        gap: 0.25rem;
-    }
-    label input:not([type="checkbox"]),
-    label select {
-        font-size: 1rem;
-        width: 100%;
-    }
-    .check {
-        align-items: center;
-        color: var(--darkest);
-        flex-direction: row;
+    button.small {
         font-size: 0.875rem;
-        gap: 0.375rem;
-        min-height: 2.75rem;
-        white-space: nowrap;
+        min-height: 2.25rem;
+        padding: 0 0.75rem;
     }
-    .link-danger {
-        color: var(--error);
-        cursor: pointer;
-        font-weight: 600;
-        min-height: 2.75rem;
-        padding: 0 0.5rem;
-        text-decoration: underline;
-        text-underline-offset: 3px;
+    .muted-group {
+        opacity: 0.8;
     }
-    .confirm {
-        background-color: var(--error-bg);
-        border: 1px solid var(--error);
-        border-radius: 0.25rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        line-height: 1.5;
-        padding: 0.875rem 1rem;
+    .primary-cell strong {
+        color: var(--adm-text);
+        margin-right: 0.375rem;
     }
-    .add-row {
-        padding-top: 0.75rem;
-    }
-    .add-row button {
-        align-items: center;
+    .badges {
         display: inline-flex;
-        gap: 0.375rem;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        vertical-align: middle;
+    }
+    .empty {
+        padding: 0.875rem 0.75rem;
     }
     .removed {
         margin-top: 2rem;
     }
     .toggle {
         align-items: center;
-        color: var(--darkest);
+        color: var(--adm-text);
         cursor: pointer;
         display: inline-flex;
         font-weight: 600;
@@ -387,17 +456,51 @@
         margin-bottom: 0.75rem;
         min-height: 2.75rem;
     }
-    .removed-list {
-        list-style: none;
+    .modal-form {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .modal-form .wide {
+        grid-column: 1 / -1;
+    }
+    .modal-form label:not(.check) {
+        color: var(--adm-text);
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        gap: 0.375rem;
     }
-    .removed-list li {
+    .modal-form input:not([type="checkbox"]),
+    .modal-form select {
+        width: 100%;
+    }
+    .optional {
+        color: var(--adm-text-muted);
+        font-size: 0.8125rem;
+        font-weight: 400;
+    }
+    .checks {
+        border: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin: 0;
+        padding: 0;
+    }
+    .check {
         align-items: center;
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem 1rem;
-        justify-content: space-between;
+        gap: 0.5rem;
+        min-height: 2.75rem;
+    }
+    @media (max-width: 40rem) {
+        .modal-form {
+            grid-template-columns: 1fr 1fr;
+        }
+        .modal-form label:nth-of-type(5) {
+            grid-column: 1 / -1;
+        }
     }
 </style>
