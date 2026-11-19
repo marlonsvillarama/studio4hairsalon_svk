@@ -44,7 +44,7 @@ export const fromISODate = (iso) => {
     return new Date(y, m - 1, d);
 };
 
-const addDays = (iso, n) => {
+export const addDays = (iso, n) => {
     const d = fromISODate(iso);
     d.setDate(d.getDate() + n);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -55,15 +55,29 @@ const toMinutes = (time) => {
     return h * 60 + m;
 };
 
+/** "YYYY-MM-DD" of the salon's today. */
+export const salonToday = (schedule, now = new Date()) =>
+    zonedParts(now, schedule?.timezone || 'Pacific/Auckland').iso;
+
+/** "YYYY-MM-DD" → "YYYY-MM" */
+export const monthKey = (iso) => iso.slice(0, 7);
+
+const lastOfMonth = (key) => {
+    const [y, m] = key.split('-').map(Number);
+    return `${key}-${pad(new Date(y, m, 0).getDate())}`;
+};
+
 /**
  * Everything the calendar needs, loaded once per visit to /book.
- * { timezone, slotStep, minNotice, horizonDays, onlineBooking,
- *   hours: { [weekday]: { open, close } | null }, busy: [{ start, end }] }
+ * { timezone, slotStep, onlineBooking,
+ *   hours: { [weekday]: { open, close } | null },
+ *   busy: { ["YYYY-MM"]: [{ start, end }] } }   (months are loaded on demand)
+ * Online bookings start tomorrow, with no upper limit.
  */
 export async function loadSchedule(now = new Date()) {
     const sb = getSupabase();
     const [settings, hours] = await Promise.all([
-        sb.from('s4_settings').select('*').single(),
+        sb.from('s4_settings').select('timezone, slot_step_min, online_booking_enabled').single(),
         sb.from('s4_business_hours').select('weekday, is_open, opens_at, closes_at')
     ]);
     if (settings.error || hours.error) {
@@ -74,47 +88,72 @@ export async function loadSchedule(now = new Date()) {
     const schedule = {
         timezone: s.timezone,
         slotStep: s.slot_step_min,
-        minNotice: s.min_notice_min,
-        horizonDays: s.horizon_days,
         onlineBooking: s.online_booking_enabled,
         hours: Object.fromEntries(hours.data.map(h => [
             h.weekday,
             h.is_open ? { open: toMinutes(h.opens_at), close: toMinutes(h.closes_at) } : null
         ])),
-        busy: []
+        busy: {}
     };
-    await refreshBusy(schedule, now);
+    // Tomorrow's month plus the next one, so the default day and a first
+    // page forward in the calendar need no extra round trip.
+    const first = monthKey(addDays(salonToday(schedule, now), 1));
+    await refreshBusy(schedule, [first, monthKey(addDays(`${first}-01`, 32))]);
     return schedule;
 }
 
-/** Re-fetch busy times (after a booking race, or when the client returns to the calendar). */
-export async function refreshBusy(schedule, now = new Date()) {
-    const today = zonedParts(now, schedule.timezone).iso;
-    const { data, error } = await getSupabase().rpc('s4_get_busy_times', {
-        p_from: today,
-        p_to: addDays(today, schedule.horizonDays)
-    });
+/**
+ * (Re-)fetch busy times for the given months ("YYYY-MM"); with no months,
+ * refresh every month already loaded. Past days are never fetched.
+ */
+export async function refreshBusy(schedule, months = Object.keys(schedule.busy), now = new Date()) {
+    const keys = [...new Set(months)].sort();
+    if (!keys.length) return schedule;
+    const today = salonToday(schedule, now);
+    const from = `${keys[0]}-01` < today ? today : `${keys[0]}-01`;
+    const to = lastOfMonth(keys[keys.length - 1]);
+    if (to < from) {
+        for (const k of keys) schedule.busy[k] = [];
+        return schedule;
+    }
+    // The RPC caps a range at 62 days, so fetch anything but a single month
+    // or two neighbouring months one by one.
+    const neighbours = keys.length === 2 && monthKey(addDays(`${keys[0]}-01`, 32)) === keys[1];
+    if (keys.length > 1 && !neighbours) {
+        await Promise.all(keys.map(k => refreshBusy(schedule, [k], now)));
+        return schedule;
+    }
+    const { data, error } = await getSupabase().rpc('s4_get_busy_times', { p_from: from, p_to: to });
     if (error) throw new AvailabilityError(error.message);
-    schedule.busy = data.map(b => ({ start: new Date(b.busy_start).getTime(), end: new Date(b.busy_end).getTime() }));
+    const intervals = data.map(b => ({ start: new Date(b.busy_start).getTime(), end: new Date(b.busy_end).getTime() }));
+    for (const k of keys) schedule.busy[k] = intervals;
     return schedule;
 }
+
+/** Whether busy times for a month are loaded. */
+export const isMonthLoaded = (schedule, key) => !!schedule?.busy[key];
 
 const weekdayOf = (iso) => fromISODate(iso).getDay();
+const busyOn = (schedule, iso) => schedule.busy[monthKey(iso)] || [];
 
-/** Days from today up to the booking horizon on which the salon is open. */
-export function getOpenDays(schedule, now = new Date()) {
-    if (!schedule) return [];
-    const today = zonedParts(now, schedule.timezone).iso;
+/** Whether a day can be booked online: from tomorrow, salon open, not blocked out. */
+export function isOpenDay(schedule, iso, now = new Date()) {
+    if (!schedule || !isMonthLoaded(schedule, monthKey(iso))) return false;
+    if (iso <= salonToday(schedule, now)) return false;
+    const hours = schedule.hours[weekdayOf(iso)];
+    if (!hours) return false;
+    // Skip days John has blocked out completely.
+    const open = salonInstant(iso, `${pad(Math.floor(hours.open / 60))}:${pad(hours.open % 60)}`, schedule.timezone).getTime();
+    const close = salonInstant(iso, `${pad(Math.floor(hours.close / 60))}:${pad(hours.close % 60)}`, schedule.timezone).getTime();
+    return !busyOn(schedule, iso).some(b => b.start <= open && b.end >= close);
+}
+
+/** Bookable days in a month ("YYYY-MM"); [] until that month is loaded. */
+export function getOpenDays(schedule, key, now = new Date()) {
+    if (!schedule || !isMonthLoaded(schedule, key)) return [];
     const days = [];
-    for (let i = 0; i <= schedule.horizonDays; i++) {
-        const iso = addDays(today, i);
-        const hours = schedule.hours[weekdayOf(iso)];
-        if (!hours) continue;
-        // Skip days John has blocked out completely.
-        const open = salonInstant(iso, `${pad(Math.floor(hours.open / 60))}:${pad(hours.open % 60)}`, schedule.timezone).getTime();
-        const close = salonInstant(iso, `${pad(Math.floor(hours.close / 60))}:${pad(hours.close % 60)}`, schedule.timezone).getTime();
-        const blocked = schedule.busy.some(b => b.start <= open && b.end >= close);
-        if (!blocked) days.push(iso);
+    for (let iso = `${key}-01`; monthKey(iso) === key; iso = addDays(iso, 1)) {
+        if (isOpenDay(schedule, iso, now)) days.push(iso);
     }
     return days;
 }
@@ -124,19 +163,17 @@ export function getOpenDays(schedule, now = new Date()) {
  * minutes fits before closing and doesn't overlap a booking or time off.
  */
 export function getSlots(schedule, isoDate, duration, now = new Date()) {
-    if (!schedule || !isoDate) return [];
+    if (!schedule || !isoDate || !isOpenDay(schedule, isoDate, now)) return [];
     const hours = schedule.hours[weekdayOf(isoDate)];
-    if (!hours) return [];
-    const earliest = now.getTime() + schedule.minNotice * 60_000;
     const length = Math.max(duration, 1) * 60_000;
+    const busy = busyOn(schedule, isoDate);
 
     const slots = [];
     for (let start = hours.open; start + Math.max(duration, 1) <= hours.close; start += schedule.slotStep) {
         const hhmm = `${pad(Math.floor(start / 60))}:${pad(start % 60)}`;
         const from = salonInstant(isoDate, hhmm, schedule.timezone).getTime();
         const to = from + length;
-        if (from < earliest) continue;
-        if (schedule.busy.some(b => b.start < to && b.end > from)) continue;
+        if (busy.some(b => b.start < to && b.end > from)) continue;
         slots.push(hhmm);
     }
     return slots;

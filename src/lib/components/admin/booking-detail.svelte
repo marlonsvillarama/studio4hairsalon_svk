@@ -2,6 +2,8 @@
     import { getSupabase } from '$lib/supabase';
     import { salonInstant } from '$lib/data/availability';
     import { SALON_TZ, salonDay, salonTime, showTime, showDay, dollars, showPhone, adminError, STATUS_LABEL } from '$lib/admin';
+    import { invoiceForBooking, invoiceNumber } from '$lib/invoices';
+    import InvoiceEditor from './invoice-editor.svelte';
 
     /** booking: a row from s4_bookings with client + items embedded. */
     let { booking: b, onchanged, onclose } = $props();
@@ -14,9 +16,35 @@
     let newDate = $state('');
     let newTime = $state('');
 
+    // Tax invoice for a completed booking (the live one, not voided).
+    let invoice = $state(null);        // { id, number, status } | null
+    let invoiceOpen = $state(false);
+    let invoiceId = $state(null);
+    async function loadInvoiceRow() {
+        if (b.status !== 'completed') { invoice = null; return; }
+        const id = b.id;
+        const { data } = await sb.from('s4_invoices').select('id, number, status')
+            .eq('booking_id', id).neq('status', 'void').maybeSingle();
+        if (id === b.id) invoice = data;
+    }
+    async function openInvoice() {
+        busy = true;
+        actionError = '';
+        try {
+            invoiceId = await invoiceForBooking(b.id);
+            invoiceOpen = true;
+            loadInvoiceRow();
+        } catch (e) {
+            actionError = e.message;
+        }
+        busy = false;
+    }
+
     // Reset the panel whenever a different booking is opened.
     $effect(() => {
         b.id;
+        b.status;
+        loadInvoiceRow();
         mode = '';
         actionError = '';
         cancelReason = '';
@@ -123,14 +151,48 @@
             </div>
         {/if}
     {:else}
+        {#if b.status === 'completed'}
+            <div class="invoice">
+                <i class="ph ph-receipt" aria-hidden="true"></i>
+                <p>
+                    {#if !invoice}Completed. Ready for a tax invoice.
+                    {:else if invoice.status === 'draft'}A draft tax invoice is started.
+                    {:else}Tax invoice <strong>{invoiceNumber(invoice.number)}</strong> issued.{/if}
+                </p>
+                <button type="button" class={invoice?.status === 'issued' ? 'secondary' : 'primary'} disabled={busy} onclick={openInvoice}>
+                    {#if !invoice}Create tax invoice{:else if invoice.status === 'draft'}Continue invoice{:else}View invoice{/if}
+                </button>
+            </div>
+        {/if}
         <div class="actions">
-            <button type="button" class="secondary" disabled={busy} onclick={() => setStatus('confirmed')}>Set back to confirmed</button>
+            {#if !(b.status === 'completed' && invoice?.status === 'issued')}
+                <button type="button" class="secondary" disabled={busy} onclick={() => setStatus('confirmed')}>Set back to confirmed</button>
+            {/if}
         </div>
     {/if}
     {#if actionError}<p class="error" role="alert">{actionError}</p>{/if}
 </article>
 
+<InvoiceEditor bind:open={invoiceOpen} {invoiceId} onchanged={loadInvoiceRow} />
+
 <style>
+    .invoice {
+        align-items: center;
+        background-color: var(--adm-success-bg);
+        border: 1px solid var(--adm-success-border);
+        border-radius: 0.375rem;
+        color: var(--adm-success-text);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        padding: 0.625rem 0.75rem;
+    }
+    .invoice > i {
+        font-size: 1.25rem;
+    }
+    .invoice p {
+        flex: 1 1 10rem;
+    }
     .detail {
         display: flex;
         flex-direction: column;

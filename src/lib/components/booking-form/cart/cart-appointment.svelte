@@ -3,14 +3,23 @@
     import { formatDuration } from "$lib/data/services";
     import { fromISODate, formatTime } from "$lib/data/availability";
     import { onMount } from "svelte";
+    import DatePicker from "./date-picker.svelte";
 
     const cartState = getCartState();
 
-    let days = $derived(cartState.openDays);
     let slots = $derived(cartState.date ? cartState.slotsFor(cartState.date) : []);
 
-    // Someone else may have booked since the calendar was loaded.
-    onMount(() => { cartState.refreshAvailability(); });
+    // Someone else may have booked since the calendar was loaded. With no day
+    // chosen yet, default to tomorrow, or the first open day after it.
+    let finding = $state(!cartState.date);
+    onMount(async () => {
+        await cartState.refreshAvailability();
+        if (!cartState.date) {
+            const first = await cartState.firstOpenDay();
+            if (first && !cartState.date) cartState.selectDate(first);
+        }
+        finding = false;
+    });
     let morning = $derived(slots.filter(t => t < '12:00'));
     let afternoon = $derived(slots.filter(t => t >= '12:00'));
 
@@ -32,17 +41,7 @@
 
 <fieldset>
     <legend>Day</legend>
-    <div class="days">
-        {#each days as iso (iso)}
-            {@const p = dayParts(iso)}
-            <button type="button" class="day" aria-pressed={cartState.date === iso}
-                aria-label={p.full} onclick={() => cartState.selectDate(iso)}>
-                <span class="weekday">{p.weekday}</span>
-                <span class="num">{p.day}</span>
-                <span class="month">{p.month}</span>
-            </button>
-        {/each}
-    </div>
+    <DatePicker value={cartState.date} loading={finding} onselect={cartState.selectDate} />
 </fieldset>
 
 {#if cartState.timeNotice}
@@ -106,56 +105,12 @@
         margin-bottom: 0.75rem;
     }
 
-    .days {
-        display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: 4.25rem;
-        gap: 0.5rem;
-        overflow-x: auto;
-        overscroll-behavior-x: contain;
-        padding: 0.25rem 0.25rem 0.75rem;
-        margin: -0.25rem -0.25rem 0;
-        scroll-snap-type: x proximity;
-        /* Fade the right edge so it's clear the strip scrolls. */
-        mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
-    }
-    .day {
-        background-color: var(--white);
-        border: 1px solid var(--input-border);
-        border-radius: 0.25rem;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.125rem;
-        padding: 0.625rem 0.25rem;
-        scroll-snap-align: start;
-        transition: background-color 150ms ease, border-color 150ms ease;
-    }
-    .day:hover,
     .time:hover {
         border-color: var(--dark);
     }
-    .day .weekday,
-    .day .month {
-        color: var(--dark);
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-    .day .num {
-        color: var(--darkest);
-        font: 600 1.375rem / 1.2 var(--font-default);
-        font-variant-numeric: tabular-nums;
-    }
-    .day[aria-pressed="true"],
     .time[aria-pressed="true"] {
         background-color: var(--darkest);
         border-color: var(--darkest);
-    }
-    .day[aria-pressed="true"] span,
-    .time[aria-pressed="true"] {
         color: var(--white);
     }
 

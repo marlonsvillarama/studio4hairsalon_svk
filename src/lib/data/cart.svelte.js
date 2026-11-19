@@ -2,7 +2,7 @@ import { getContext, setContext } from "svelte";
 import { getSupabase, errorCode } from "$lib/supabase";
 import { loadCatalogue, priceFor, formatDuration } from "./services";
 import { submitBooking } from "./booking";
-import { loadSchedule, refreshBusy, getOpenDays, getSlots, formatTime } from "./availability";
+import { loadSchedule, refreshBusy, getOpenDays, getSlots, formatTime, isMonthLoaded, monthKey, salonToday, addDays } from "./availability";
 
 const STORAGE_KEY = 'studio4.booking';
 const CONFIRMED_KEY = 'studio4.booking.confirmed';
@@ -65,7 +65,11 @@ export class CartState {
     get hasVariablePrice() { return this.selectedItems.some(s => s.range) }
     get onlyAddOns() { return this.services.length > 0 && this.selectedItems.every(s => s.addon) }
 
-    get openDays() { return getOpenDays(this.schedule) }
+    /** Bookable days in a month ("YYYY-MM"); load it first with loadMonth. */
+    openDaysIn = (key) => getOpenDays(this.schedule, key);
+    isMonthLoaded = (key) => isMonthLoaded(this.schedule, key);
+    /** The first month that can have bookable days (tomorrow's). */
+    get firstMonth() { return monthKey(addDays(salonToday(this.schedule), 1)) }
     slotsFor = (isoDate) => getSlots(this.schedule, isoDate, this.totalDuration);
 
     get detailErrors() {
@@ -118,7 +122,7 @@ export class CartState {
             return;
         }
 
-        this.restore();
+        await this.restore();
 
         const params = new URLSearchParams(window.location.search);
         if (params.get('error') || params.get('error_description')) {
@@ -132,6 +136,33 @@ export class CartState {
                 setTimeout(() => this.loadAccount(), 0);
             }
         });
+    }
+
+    /** Make sure busy times for a month ("YYYY-MM") are loaded. */
+    loadMonth = async (key) => {
+        if (!this.schedule || this.isMonthLoaded(key)) return true;
+        try {
+            await refreshBusy(this.schedule, [key]);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * The first bookable day from tomorrow, looking up to a year ahead.
+     * Returns '' when nothing is free (or the calendar can't be loaded).
+     */
+    firstOpenDay = async () => {
+        if (!this.schedule) return '';
+        let key = this.firstMonth;
+        for (let i = 0; i < 12; i++) {
+            if (!(await this.loadMonth(key))) return '';
+            const days = this.openDaysIn(key);
+            if (days.length) return days[0];
+            key = monthKey(addDays(`${key}-01`, 32));
+        }
+        return '';
     }
 
     /** Re-check busy times (e.g. when the client comes back to the calendar). */
@@ -304,7 +335,7 @@ export class CartState {
     // Send the client to the step that can fix the problem.
     async recover(err) {
         const code = err?.code || errorCode(err);
-        if (['slot_taken', 'too_soon', 'too_far', 'outside_hours'].includes(code)) {
+        if (['slot_taken', 'too_soon', 'outside_hours'].includes(code)) {
             const lost = this.time;
             await this.refreshAvailability();
             this.time = '';
@@ -364,7 +395,7 @@ export class CartState {
         } catch { /* storage unavailable: progress just won't survive a reload */ }
     }
 
-    restore() {
+    async restore() {
         try {
             const confirmed = JSON.parse(sessionStorage.getItem(CONFIRMED_KEY) || 'null');
             if (confirmed) {
@@ -380,7 +411,8 @@ export class CartState {
             this.time = saved.time || '';
             this.client = { ...emptyClient(), ...(saved.client || {}) };
             this.goldCard = !!saved.goldCard;
-            if (this.date && !this.openDays.includes(this.date)) this.date = '';
+            if (this.date) await this.loadMonth(monthKey(this.date));
+            if (this.date && !this.openDaysIn(monthKey(this.date)).includes(this.date)) this.date = '';
             if (!this.date || !this.slotsFor(this.date).includes(this.time)) this.time = '';
             const target = Math.min(Math.max(saved.step || 0, 0), STEPS.length - 1);
             this.step = 0;

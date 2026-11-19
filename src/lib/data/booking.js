@@ -14,8 +14,7 @@ export class BookingError extends Error {
 
 const MESSAGES = {
     slot_taken: 'Someone has just booked that time.',
-    too_soon: "That time is too soon to book online.",
-    too_far: "That date is further ahead than I take online bookings.",
+    too_soon: "Online bookings start from tomorrow. To book today, call 022 188 5240.",
     outside_hours: "That time is outside opening hours.",
     invalid_services: "One of those services isn't available any more.",
     invalid_phone: "That mobile number doesn't look right.",

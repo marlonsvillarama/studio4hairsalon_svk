@@ -89,9 +89,12 @@
         { href: '/admin/time-off', label: 'Time off', icon: 'calendar-x' },
         { href: '/admin/categories', label: 'Categories', icon: 'squares-four' },
         { href: '/admin/services', label: 'Services', icon: 'scissors' },
+        { href: '/admin/invoices', label: 'Tax invoices', icon: 'receipt' },
         { href: '/admin/settings', label: 'Settings', icon: 'gear-six' }
     ];
-    let currentLabel = $derived(nav.find(n => n.href === page.url.pathname)?.label ?? 'Admin');
+    // A section stays current on its sub-pages (e.g. one invoice).
+    const isCurrent = (href, path) => href === '/admin' ? path === href : path === href || path.startsWith(`${href}/`);
+    let currentLabel = $derived(nav.find(n => isCurrent(n.href, page.url.pathname))?.label ?? 'Admin');
 
     // On narrow screens the sidebar is a popover drawer; close it after navigating.
     let menu = $state();
@@ -128,7 +131,7 @@
             </div>
             <nav aria-label="Admin">
                 {#each nav as n}
-                    <a href={n.href} aria-current={page.url.pathname === n.href ? 'page' : undefined} onclick={closeMenu}>
+                    <a href={n.href} aria-current={isCurrent(n.href, page.url.pathname) ? 'page' : undefined} onclick={closeMenu}>
                         <i class="ph ph-{n.icon}" aria-hidden="true"></i>
                         <span>{n.label}</span>
                     </a>
@@ -343,6 +346,25 @@
     .narrow {
         margin: 2rem auto 0;
         max-width: 28rem;
+    }
+    /* Printing (tax invoices): only the page content, on plain paper. */
+    @media print {
+        .admin {
+            background: none;
+            min-height: 0;
+        }
+        .admin.with-sidebar {
+            display: block !important;
+        }
+        .topbar,
+        .sidebar,
+        .bar,
+        .admin :global(.no-print) {
+            display: none !important;
+        }
+        .content {
+            padding: 0 !important;
+        }
     }
 
     /* Narrow screens: top bar + drawer. */

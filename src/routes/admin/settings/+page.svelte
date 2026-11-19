@@ -2,12 +2,15 @@
     import { onMount } from 'svelte';
     import { getSupabase } from '$lib/supabase';
     import { adminError } from '$lib/admin';
+    import { showGst } from '$lib/invoices';
 
     const sb = getSupabase();
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     let settings = $state(null);
     let hours = $state([]);
+    let business = $state(null);
+    let gstText = $state('');
     let loading = $state(true);
     let error = $state('');
     let message = $state('');
@@ -15,13 +18,16 @@
 
     async function load() {
         loading = true;
-        const [s, h] = await Promise.all([
+        const [s, h, b] = await Promise.all([
             sb.from('s4_settings').select('*').single(),
-            sb.from('s4_business_hours').select('*').order('weekday')
+            sb.from('s4_business_hours').select('*').order('weekday'),
+            sb.from('s4_business').select('*').maybeSingle()
         ]);
         loading = false;
-        if (s.error || h.error) { error = adminError(s.error || h.error); return; }
+        if (s.error || h.error || b.error) { error = adminError(s.error || h.error || b.error); return; }
         settings = s.data;
+        business = b.data;
+        gstText = showGst(b.data?.gst_number);
         hours = h.data.map(d => ({
             ...d,
             opens_at: d.opens_at?.slice(0, 5) ?? '09:30',
@@ -40,11 +46,23 @@
                 return;
             }
         }
+        const gstDigits = gstText.replace(/\D/g, '');
+        if (business && gstDigits && !/^\d{8,9}$/.test(gstDigits)) {
+            error = 'A GST number has 8 or 9 digits, e.g. 123-456-789.';
+            return;
+        }
         saving = true;
+        const biz = business ? await sb.from('s4_business').update({
+            trading_name: business.trading_name.trim(),
+            legal_name: business.legal_name.trim(),
+            gst_number: gstDigits,
+            address: business.address.trim(),
+            phone: business.phone.trim(),
+            email: business.email.trim(),
+            invoice_note: business.invoice_note.trim()
+        }).eq('id', true) : { error: null };
         const s = await sb.from('s4_settings').update({
             online_booking_enabled: settings.online_booking_enabled,
-            min_notice_min: Number(settings.min_notice_min),
-            horizon_days: Number(settings.horizon_days),
             slot_step_min: Number(settings.slot_step_min)
         }).eq('id', true);
         const h = await sb.from('s4_business_hours').upsert(hours.map(d => ({
@@ -54,7 +72,8 @@
             closes_at: d.is_open ? d.closes_at : null
         })));
         saving = false;
-        if (s.error || h.error) { error = adminError(s.error || h.error); return; }
+        if (s.error || h.error || biz.error) { error = adminError(s.error || h.error || biz.error); return; }
+        if (business) gstText = showGst(gstDigits);
         message = 'Saved.';
     }
 </script>
@@ -76,12 +95,6 @@
             <p class="muted">When off, the booking page asks clients to call or text instead.</p>
 
             <div class="grid">
-                <label>Minimum notice (minutes)
-                    <input type="number" min="0" step="15" bind:value={settings.min_notice_min} />
-                </label>
-                <label>Book up to (days ahead)
-                    <input type="number" min="1" max="60" bind:value={settings.horizon_days} />
-                </label>
                 <label>Start times every (minutes)
                     <select bind:value={settings.slot_step_min}>
                         <option value={15}>15</option>
@@ -111,6 +124,40 @@
                 {/each}
             </ul>
         </section>
+
+        {#if business}
+            <section class="panel">
+                <h2>Business details</h2>
+                <p class="muted">Printed on every tax invoice. Changes apply to invoices issued from now on.</p>
+                <div class="grid">
+                    <label>Trading name
+                        <input bind:value={business.trading_name} required maxlength="120" autocomplete="organization" />
+                    </label>
+                    <label>
+                        <span>Legal name <span class="optional">(if different)</span></span>
+                        <input bind:value={business.legal_name} maxlength="120" />
+                    </label>
+                    <label>GST number
+                        <input bind:value={gstText} inputmode="numeric" placeholder="123-456-789" maxlength="11" />
+                    </label>
+                    <label>Phone
+                        <input bind:value={business.phone} maxlength="40" autocomplete="tel" />
+                    </label>
+                    <label>Email
+                        <input type="email" bind:value={business.email} maxlength="120" autocomplete="email" />
+                    </label>
+                </div>
+                <div class="grid">
+                    <label>Address
+                        <textarea rows="3" bind:value={business.address} maxlength="300"></textarea>
+                    </label>
+                    <label>
+                        <span>Invoice note <span class="optional">(optional, e.g. bank account)</span></span>
+                        <textarea rows="3" bind:value={business.invoice_note} maxlength="500"></textarea>
+                    </label>
+                </div>
+            </section>
+        {/if}
 
         <div class="bar">
             <button type="submit" class="primary" disabled={saving}>{saving ? 'Saving…' : 'Save settings'}</button>
@@ -171,6 +218,14 @@
     }
     .sr-label {
         flex-direction: row;
+    }
+    .optional {
+        color: var(--adm-text-muted);
+        font-weight: 400;
+    }
+    textarea {
+        resize: vertical;
+        width: 100%;
     }
     .bar {
         align-items: center;
