@@ -33,6 +33,16 @@
         try { localStorage.setItem(THEME_KEY, t); } catch { /* private mode: this session only */ }
     }
 
+    // ─── Collapsed sidebar (wide screens; remembered in this browser) ────
+    const SIDEBAR_KEY = 's4.admin.sidebar';
+    const cachedRail = () => { try { return localStorage.getItem(SIDEBAR_KEY) === 'collapsed'; } catch { return false; } };
+    let rail = $state(cachedRail());
+    function toggleRail() {
+        rail = !rail;
+        try { localStorage.setItem(SIDEBAR_KEY, rail ? 'collapsed' : 'expanded'); } catch { /* this session only */ }
+    }
+    let otherTheme = $derived(THEMES.find(t => t.id !== theme));
+
     async function chooseTheme(t) {
         if (t === theme) return;
         applyTheme(t);
@@ -109,7 +119,7 @@
     <meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="admin" class:with-sidebar={view === 'ready'} data-theme={theme}>
+<div class="admin" class:with-sidebar={view === 'ready'} class:rail data-theme={theme}>
     {#if view === 'ready'}
         <!-- Narrow screens: slim bar with a menu button. -->
         <header class="topbar">
@@ -131,13 +141,18 @@
             </div>
             <nav aria-label="Admin">
                 {#each nav as n}
-                    <a href={n.href} aria-current={isCurrent(n.href, page.url.pathname) ? 'page' : undefined} onclick={closeMenu}>
+                    <a href={n.href} title={rail ? n.label : undefined} aria-current={isCurrent(n.href, page.url.pathname) ? 'page' : undefined} onclick={closeMenu}>
                         <i class="ph ph-{n.icon}" aria-hidden="true"></i>
                         <span>{n.label}</span>
                     </a>
                 {/each}
             </nav>
             <div class="sidebar-foot">
+                <button type="button" class="foot-link rail-theme" title="Switch to the {otherTheme.label} theme"
+                    onclick={() => chooseTheme(otherTheme.id)}>
+                    <i class="ph ph-palette" aria-hidden="true"></i>
+                    <span>Switch to the {otherTheme.label} theme</span>
+                </button>
                 <div class="theme">
                     <span class="theme-label" id="theme-label">
                         <i class="ph ph-palette" aria-hidden="true"></i> Theme
@@ -149,22 +164,29 @@
                                 onclick={() => chooseTheme(t.id)}>{t.label}</button>
                         {/each}
                     </div>
-                    {#if themeNote}<p class="theme-note" role="alert">{themeNote}</p>{/if}
                 </div>
-                <a href="/" target="_blank" rel="noopener" class="foot-link">
+                {#if themeNote}<p class="theme-note" role="alert">{themeNote}</p>{/if}
+                <a href="/" target="_blank" rel="noopener" class="foot-link" title={rail ? 'View website' : undefined}>
                     <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
                     <span>View website</span>
                 </a>
-                <div class="who">
+                <div class="who" title={rail ? staff?.display_name ?? 'Staff' : undefined}>
                     <i class="ph ph-user-circle" aria-hidden="true"></i>
                     <span>{staff?.display_name ?? 'Staff'}</span>
                 </div>
-                <button type="button" class="foot-link signout" onclick={signOut}>
+                <button type="button" class="foot-link signout" title={rail ? 'Sign out' : undefined} onclick={signOut}>
                     <i class="ph ph-sign-out" aria-hidden="true"></i>
                     <span>Sign out</span>
                 </button>
             </div>
         </aside>
+
+        <!-- Wide screens: sits half over the sidebar's edge. Outside <aside>, which scrolls and would clip it. -->
+        <button type="button" class="rail-toggle no-print" aria-controls="admin-menu" aria-expanded={!rail}
+            aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'} title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+            onclick={toggleRail}>
+            <i class="ph ph-caret-double-{rail ? 'right' : 'left'}" aria-hidden="true"></i>
+        </button>
     {:else}
         <header class="bar">
             <a href="/admin" class="brand" aria-label="Studio 4 admin"><Logo /></a>
@@ -523,6 +545,7 @@
     .theme-note {
         color: var(--adm-sidebar-subtle);
         font-size: 0.75rem;
+        padding: 0 0.75rem;
     }
     .who {
         align-items: center;
@@ -534,11 +557,20 @@
         padding: 0 0.75rem;
     }
 
+    .rail-theme,
+    .rail-toggle {
+        display: none;
+    }
+
     /* Wide screens: fixed sidebar beside full-width content. */
     @media (min-width: 56rem) {
         .admin.with-sidebar {
+            --sidebar-w: 15rem;
             display: grid;
-            grid-template-columns: 15rem minmax(0, 1fr);
+            grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+        }
+        .admin.with-sidebar.rail {
+            --sidebar-w: 4.25rem;
         }
         .topbar,
         .close-btn {
@@ -555,6 +587,72 @@
             transform: none;
             transition: none;
             width: auto;
+        }
+
+        .rail-toggle {
+            background-color: var(--adm-surface);
+            border: 1px solid var(--adm-border-strong);
+            border-radius: 50%;
+            box-shadow: var(--adm-shadow-raised);
+            color: var(--adm-text);
+            cursor: pointer;
+            display: grid;
+            font-size: 1rem;
+            height: 2rem;
+            left: calc(var(--sidebar-w) - 1rem);
+            place-items: center;
+            position: fixed;
+            top: 1.25rem;
+            width: 2rem;
+            z-index: 10;
+            transition: background-color 150ms ease;
+        }
+        .rail-toggle:hover {
+            background-color: var(--adm-sunken);
+        }
+        /* Roomier target, without reaching over the menu items. */
+        .rail-toggle::before {
+            content: "";
+            inset: -0.375rem -0.5rem -0.375rem 0;
+            position: absolute;
+        }
+
+        /* Collapsed: icons only. Labels stay available to screen readers. */
+        .rail .brand,
+        .rail nav a > span,
+        .rail .foot-link > span,
+        .rail .who > span {
+            clip-path: inset(50%);
+            height: 1px;
+            overflow: hidden;
+            position: absolute;
+            white-space: nowrap;
+            width: 1px;
+        }
+        .rail .brand:focus-visible {
+            clip-path: none;
+            height: auto;
+            position: static;
+            width: auto;
+        }
+        .rail .sidebar {
+            overflow-x: hidden;
+        }
+        .rail .sidebar-head {
+            min-height: 2.75rem;
+        }
+        .rail nav a,
+        .rail .foot-link,
+        .rail .who {
+            justify-content: center;
+            padding: 0;
+        }
+        .rail .theme {
+            display: none;
+        }
+        .rail .rail-theme {
+            cursor: pointer;
+            display: flex;
         }
     }
     @media (prefers-reduced-motion: reduce) {

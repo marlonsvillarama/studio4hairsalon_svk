@@ -22,6 +22,7 @@
     let filter = $state('all');     // 'all' or a category id (string)
 
     // Add/Edit modal
+    let slotStep = $state(30);
     let formOpen = $state(false);
     let form = $state(blankForm());
     let formError = $state('');
@@ -33,6 +34,7 @@
 
     function blankForm(categoryId = null) {
         return { id: null, category_id: categoryId, name: '', price: '', gold: '', duration_min: 30,
+                 has_wait: false, wait_after_min: '', wait_min: '',
                  price_is_from: false, is_addon: false, is_active: true };
     }
 
@@ -44,12 +46,14 @@
 
     async function load() {
         loading = true;
-        const [c, s] = await Promise.all([
+        const [c, s, st] = await Promise.all([
             sb.from('s4_categories').select('id, name, is_active, deleted_at').order('sort_order').order('id'),
             sb.from('s4_services')
-                .select('id, category_id, name, price_cents, gold_card_price_cents, duration_min, price_is_from, is_addon, is_active, deleted_at, sort_order')
-                .order('sort_order').order('id')
+                .select('id, category_id, name, price_cents, gold_card_price_cents, duration_min, price_is_from, is_addon, is_active, deleted_at, sort_order, wait_after_min, wait_min')
+                .order('sort_order').order('id'),
+            sb.from('s4_settings').select('slot_step_min').single()
         ]);
+        if (st.data) slotStep = st.data.slot_step_min;
         loading = false;
         if (c.error || s.error) { error = adminError(c.error || s.error); return; }
         categories = c.data;
@@ -93,6 +97,11 @@
         if (r.price === '' || !(price >= 0)) return 'Enter a price.';
         if (gold != null && !(gold >= 0 && gold < price)) return 'Gold Card price must be lower than the standard price.';
         if (!(Number(r.duration_min) > 0)) return 'Enter a duration in minutes.';
+        const after = Number(r.wait_after_min), wait = Number(r.wait_min);
+        if (r.has_wait) {
+            if (!(Number.isInteger(after) && after > 0 && Number.isInteger(wait) && wait > 0)) return 'Enter the hands-on and waiting minutes.';
+            if (after + wait >= Number(r.duration_min)) return 'Hands-on and waiting time must leave some finishing time within the total minutes.';
+        }
         return {
             name: String(r.name).trim(),
             category_id: Number(r.category_id),
@@ -101,9 +110,21 @@
             duration_min: Number(r.duration_min),
             price_is_from: r.price_is_from,
             is_addon: r.is_addon,
+            wait_after_min: r.has_wait ? after : null,
+            wait_min: r.has_wait ? wait : null,
             is_active: r.is_active
         };
     }
+
+    // How the visit splits up, and whether anything could be booked in the wait.
+    let split = $derived.by(() => {
+        const after = Number(form.wait_after_min), wait = Number(form.wait_min), finish = Number(form.duration_min) - after - wait;
+        if (!form.has_wait || !(after > 0 && wait > 0 && finish > 0)) return null;
+        const firstStart = Math.ceil(after / slotStep) * slotStep;
+        const bookable = rows.filter(r => !r.deleted_at && r.is_active && !r.is_addon && r.id !== form.id).map(r => r.duration_min);
+        const fits = bookable.length > 0 && firstStart + Math.min(...bookable) <= after + wait;
+        return { after, wait, finish, fits };
+    });
 
     // ─── Add / Edit ─────────────────────────────────────────────────────
     function openAdd(categoryId = null) {
@@ -114,6 +135,7 @@
     }
     function openEdit(r) {
         form = { id: r.id, category_id: r.category_id, name: r.name, price: r.price, gold: r.gold, duration_min: r.duration_min,
+                 has_wait: r.wait_min != null, wait_after_min: r.wait_after_min ?? '', wait_min: r.wait_min ?? '',
                  price_is_from: r.price_is_from, is_addon: r.is_addon, is_active: r.is_active };
         formError = '';
         formOpen = true;
@@ -268,7 +290,7 @@
                         </td>
                         <td class="num" data-label="Price">{r.price_is_from ? 'from ' : ''}{dollars(r.price_cents)}</td>
                         <td class="num" data-label="Gold Card">{r.gold_card_price_cents == null ? '—' : dollars(r.gold_card_price_cents)}</td>
-                        <td class="num" data-label="Duration">{formatDuration(r.duration_min)}</td>
+                        <td class="num" data-label="Duration">{formatDuration(r.duration_min)}{#if r.wait_min}<span class="sub">{formatDuration(r.wait_min)} waiting</span>{/if}</td>
                         <td data-label="Bookable">
                             <Switch bind:checked={r.is_active} label="{r.name} bookable" disabled={busyId === r.id}
                                 onchange={(v) => toggleActive(r, v)} />
@@ -354,6 +376,24 @@
             <label class="check"><input type="checkbox" bind:checked={form.price_is_from} /> Price can vary (show "from")</label>
             <label class="check"><input type="checkbox" bind:checked={form.is_addon} /> Add-on (only booked with another service)</label>
         </fieldset>
+        <div class="wide"><Switch bind:checked={form.has_wait} label="Has waiting time" showLabel /></div>
+        {#if form.has_wait}
+            <p class="wide muted">Another client can be booked while you wait, e.g. while a treatment sits.</p>
+            <label>
+                Hands-on first (min)
+                <input type="number" inputmode="numeric" min="5" step="5" bind:value={form.wait_after_min} required />
+            </label>
+            <label>
+                Waiting (min)
+                <input type="number" inputmode="numeric" min="5" step="5" bind:value={form.wait_min} required />
+            </label>
+            {#if split}
+                <p class="wide" role="status">{split.after} min hands-on · {split.wait} min waiting · {split.finish} min finishing</p>
+                {#if !split.fits}
+                    <p class="wide muted">No service fits this wait while start times are every {slotStep} minutes. Try a longer wait, or change “Start times every” in Settings.</p>
+                {/if}
+            {/if}
+        {/if}
         <div class="wide"><Switch bind:checked={form.is_active} label="Bookable" showLabel /></div>
         {#if formError}<p class="error wide" role="alert">{formError}</p>{/if}
     </form>

@@ -1,12 +1,13 @@
 <script>
     import { getSupabase } from '$lib/supabase';
     import { salonInstant } from '$lib/data/availability';
-    import { SALON_TZ, salonDay, salonTime, showTime, showDay, dollars, showPhone, adminError, STATUS_LABEL } from '$lib/admin';
+    import { SALON_TZ, salonDay, salonTime, showTime, showDay, dollars, showPhone, adminError, STATUS_LABEL, bookingGaps, sitsInside } from '$lib/admin';
     import { invoiceForBooking, invoiceNumber } from '$lib/invoices';
+    import Switch from './switch.svelte';
     import InvoiceEditor from './invoice-editor.svelte';
 
-    /** booking: a row from s4_bookings with client + items embedded. */
-    let { booking: b, onchanged, onclose } = $props();
+    /** booking: a row from s4_bookings with client + items embedded. bookings: everything loaded, to find neighbours. */
+    let { booking: b, bookings = [], onchanged, onclose } = $props();
 
     const sb = getSupabase();
     let busy = $state(false);
@@ -61,6 +62,17 @@
 
     let items = $derived(b.items.toSorted((a, z) => a.sort_order - z.sort_order));
 
+    // Waiting time, and who shares it.
+    let gaps = $derived(bookingGaps(b));
+    let guests = $derived(bookings.filter(x => sitsInside(x, b)));
+    let host = $derived(bookings.find(x => sitsInside(b, x)));
+    const nameOf = (x) => `${x.client?.first_name ?? ''} ${x.client?.last_name ?? ''}`.trim() || 'Another client';
+    let gapsOpen = $state(true);
+    $effect(() => { gapsOpen = b.gaps_open; });
+    async function offerGaps(v) {
+        if (!(await update({ gaps_open: v }))) gapsOpen = !v;
+    }
+
     async function update(patch) {
         busy = true;
         actionError = '';
@@ -68,6 +80,9 @@
         busy = false;
         if (error) {
             actionError = adminError(error);
+            if (error.code === '23P01' && guests.length) {
+                actionError += ` ${guests.map(nameOf).join(' and ')} ${guests.length === 1 ? 'is' : 'are'} booked in the waiting time: move that booking first.`;
+            }
             return false;
         }
         mode = '';
@@ -115,6 +130,16 @@
             </ul>
         </dd></div>
         <div><dt>Total</dt><dd><strong>{b.has_variable_price ? 'from ' : ''}{dollars(b.total_cents)}</strong></dd></div>
+        {#if gaps.length}
+            <div><dt>Waiting</dt><dd>
+                {#each gaps as g}<span class="gap">{showTime(g.start)}–{showTime(g.end)}</span>{/each}
+                {#each guests as x (x.id)}<span class="gap">{nameOf(x)} at {showTime(x.starts_at)}</span>{/each}
+                {#if b.status === 'confirmed'}
+                    <Switch bind:checked={gapsOpen} label="Offer online" showLabel disabled={busy} onchange={offerGaps} />
+                {/if}
+            </dd></div>
+        {/if}
+        {#if host}<div><dt>During</dt><dd>{nameOf(host)}'s waiting time</dd></div>{/if}
         {#if b.notes}<div><dt>Notes</dt><dd class="notes">"{b.notes}"</dd></div>{/if}
         {#if b.cancel_reason}<div><dt>Cancelled</dt><dd>{b.cancel_reason}</dd></div>{/if}
         <div><dt>Reference</dt><dd class="ref">{b.reference}</dd></div>
@@ -186,6 +211,9 @@
         flex-wrap: wrap;
         gap: 0.5rem 0.75rem;
         padding: 0.625rem 0.75rem;
+    }
+    .gap {
+        display: block;
     }
     .invoice > i {
         font-size: 1.25rem;

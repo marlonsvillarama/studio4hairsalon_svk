@@ -71,7 +71,7 @@ const lastOfMonth = (key) => {
  * Everything the calendar needs, loaded once per visit to /book.
  * { timezone, slotStep, onlineBooking,
  *   hours: { [weekday]: { open, close } | null },
- *   busy: { ["YYYY-MM"]: [{ start, end }] } }   (months are loaded on demand)
+ *   busy: { ["YYYY-MM"]: [{ start, end, gaps: [{ start, end }], canNest }] } }   (months are loaded on demand)
  * Online bookings start tomorrow, with no upper limit.
  */
 export async function loadSchedule(now = new Date()) {
@@ -125,7 +125,12 @@ export async function refreshBusy(schedule, months = Object.keys(schedule.busy),
     }
     const { data, error } = await getSupabase().rpc('s4_get_busy_times', { p_from: from, p_to: to });
     if (error) throw new AvailabilityError(error.message);
-    const intervals = data.map(b => ({ start: new Date(b.busy_start).getTime(), end: new Date(b.busy_end).getTime() }));
+    const intervals = data.map(b => ({
+        start: new Date(b.busy_start).getTime(),
+        end: new Date(b.busy_end).getTime(),
+        gaps: (b.gaps || []).map(g => ({ start: new Date(g.start).getTime(), end: new Date(g.end).getTime() })),
+        canNest: !!b.can_nest
+    }));
     for (const k of keys) schedule.busy[k] = intervals;
     return schedule;
 }
@@ -145,7 +150,7 @@ export function isOpenDay(schedule, iso, now = new Date()) {
     // Skip days John has blocked out completely.
     const open = salonInstant(iso, `${pad(Math.floor(hours.open / 60))}:${pad(hours.open % 60)}`, schedule.timezone).getTime();
     const close = salonInstant(iso, `${pad(Math.floor(hours.close / 60))}:${pad(hours.close % 60)}`, schedule.timezone).getTime();
-    return !busyOn(schedule, iso).some(b => b.start <= open && b.end >= close);
+    return !busyOn(schedule, iso).some(b => b.start <= open && b.end >= close && !b.gaps.length);
 }
 
 /** Bookable days in a month ("YYYY-MM"); [] until that month is loaded. */
@@ -158,11 +163,30 @@ export function getOpenDays(schedule, key, now = new Date()) {
     return days;
 }
 
+const within = (inner, gaps) => gaps.some(g => g.start <= inner.start && g.end >= inner.end);
+
+/**
+ * Whether a visit clashes with what's booked. Visits may overlap only when one
+ * sits wholly inside a waiting period of the other, one level deep. Mirrors
+ * s4_bookings_check_overlap in the database, which has the final say.
+ */
+export function clashes(visit, busy) {
+    let inside = 0, around = 0;
+    for (const b of busy) {
+        if (b.start >= visit.end || b.end <= visit.start) continue;
+        if (within(visit, b.gaps)) inside += 1;
+        else if (b.canNest && within(b, visit.gaps)) around += 1;
+        else return true;
+    }
+    return inside > 1 || (inside > 0 && around > 0);
+}
+
 /**
  * Start times ("HH:MM", salon time) on `isoDate` where a visit of `duration`
- * minutes fits before closing and doesn't overlap a booking or time off.
+ * minutes fits before closing and doesn't clash with a booking or time off.
+ * `gaps` are the visit's own waiting periods, in minutes from its start.
  */
-export function getSlots(schedule, isoDate, duration, now = new Date()) {
+export function getSlots(schedule, isoDate, duration, gaps = [], now = new Date()) {
     if (!schedule || !isoDate || !isOpenDay(schedule, isoDate, now)) return [];
     const hours = schedule.hours[weekdayOf(isoDate)];
     const length = Math.max(duration, 1) * 60_000;
@@ -173,7 +197,8 @@ export function getSlots(schedule, isoDate, duration, now = new Date()) {
         const hhmm = `${pad(Math.floor(start / 60))}:${pad(start % 60)}`;
         const from = salonInstant(isoDate, hhmm, schedule.timezone).getTime();
         const to = from + length;
-        if (busy.some(b => b.start < to && b.end > from)) continue;
+        const ownGaps = gaps.map(g => ({ start: from + g.start * 60_000, end: from + g.end * 60_000 }));
+        if (clashes({ start: from, end: to, gaps: ownGaps }, busy)) continue;
         slots.push(hhmm);
     }
     return slots;

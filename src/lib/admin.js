@@ -103,6 +103,19 @@ export const dayLabel = (iso) =>
 export const STATUS_LABEL = { confirmed: 'Confirmed', cancelled: 'Cancelled', completed: 'Completed', no_show: 'No-show' };
 export const isInactive = (b) => b.status === 'cancelled' || b.status === 'no_show';
 
+// ─── waiting time inside a booking ───────────────────────────────────────
+
+/** A booking's waiting periods ("{[30,60)}", minutes from its start) as [{ start, end }] in ms. */
+export const bookingGaps = (b) => {
+    const from = new Date(b.starts_at).getTime();
+    return [...(b.gaps ?? '').matchAll(/\[(\d+),(\d+)\)/g)]
+        .map(([, s, e]) => ({ start: from + s * 60_000, end: from + e * 60_000 }));
+};
+
+/** Whether `inner` sits inside one of `host`'s waiting periods (both going ahead). */
+export const sitsInside = (inner, host) => inner.id !== host.id && !isInactive(inner) && !isInactive(host)
+    && bookingGaps(host).some(g => g.start <= new Date(inner.starts_at).getTime() && g.end >= new Date(inner.ends_at).getTime());
+
 // ─── time off on a given day ─────────────────────────────────────────────
 
 /** 750 → "12:30" */

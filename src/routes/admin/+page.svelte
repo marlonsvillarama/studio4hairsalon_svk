@@ -59,7 +59,7 @@
         loadError = '';
         const [b, t, h] = await Promise.all([
             sb.from('s4_bookings')
-                .select(`id, reference, starts_at, ends_at, status, total_cents, has_variable_price, gold_card, notes, cancel_reason, source,
+                .select(`id, reference, starts_at, ends_at, status, total_cents, has_variable_price, gold_card, notes, cancel_reason, source, gaps, gaps_open,
                          client:s4_clients ( first_name, last_name, phone_e164, email, email_verified ),
                          items:s4_booking_items ( name, price_cents, gold_card_applied, sort_order,
                              service:s4_services ( is_active, deleted_at, category:s4_categories ( is_active, deleted_at ) ) )`)
@@ -153,7 +153,7 @@
 
     {#if selected}
         <aside class="side" bind:this={detailEl} aria-label="Booking details">
-            <BookingDetail booking={selected} onchanged={() => load()} onclose={closeDetail} />
+            <BookingDetail booking={selected} {bookings} onchanged={() => load()} onclose={closeDetail} />
         </aside>
     {/if}
 </div>

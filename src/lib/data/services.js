@@ -13,6 +13,8 @@ const toService = (s) => ({
     price: s.price_cents / 100,
     goldCardPrice: s.gold_card_price_cents == null ? null : s.gold_card_price_cents / 100,
     duration: s.duration_min,
+    // Partway through, John is free: { after, length } minutes, or null.
+    wait: s.wait_min ? { after: s.wait_after_min, length: s.wait_min } : null,
     range: s.price_is_from,
     addon: s.is_addon
 });
@@ -21,13 +23,16 @@ const toService = (s) => ({
 export async function loadCatalogue() {
     const sb = getSupabase();
     const [categories, services] = await Promise.all([
-        sb.from('s4_categories').select('id, slug, name, description').eq('is_active', true).is('deleted_at', null).order('sort_order'),
+        sb.from('s4_categories').select('id, slug, name, description').eq('is_active', true).is('deleted_at', null).order('sort_order').order('id'),
         sb.from('s4_services')
-            .select('id, category_id, name, price_cents, gold_card_price_cents, duration_min, price_is_from, is_addon')
+            // All columns: the site keeps working (without waiting time) on a
+            // database that hasn't had the waiting-time migration yet.
+            .select('*')
             .eq('is_active', true)
             .is('deleted_at', null)
             .order('category_id')
             .order('sort_order')
+            .order('id')
     ]);
     if (categories.error || services.error) {
         throw new CatalogueError((categories.error || services.error).message);

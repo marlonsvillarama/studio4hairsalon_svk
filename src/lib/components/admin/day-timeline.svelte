@@ -1,7 +1,7 @@
 <script>
     import { onMount } from 'svelte';
     import { salonInstant, formatTime } from '$lib/data/availability';
-    import { SALON_TZ, salonDay, showTime, dayLabel, weekdayOf, isInactive, STATUS_LABEL, blocksForDay, minutesToHHMM } from '$lib/admin';
+    import { SALON_TZ, salonDay, showTime, dayLabel, weekdayOf, isInactive, STATUS_LABEL, blocksForDay, minutesToHHMM, bookingGaps, sitsInside } from '$lib/admin';
 
     /**
      * days:       ["YYYY-MM-DD", …] — one column each (1 for Day view, 7 for Week view)
@@ -52,10 +52,13 @@
 
     const y = (mins) => (mins - range.start) * PX_PER_MIN;
 
-    // Lay out one day's bookings: overlapping bookings share the width in columns.
+    // Lay out one day's bookings: overlapping bookings share the width in columns,
+    // except a visit inside another's waiting time, which sits on top of its host.
     function layout(iso) {
-        const list = bookings
-            .filter(b => salonDay(b.starts_at) === iso)
+        const ofDay = bookings.filter(b => salonDay(b.starts_at) === iso);
+        const hostOf = new Map(ofDay.map(b => [b.id, ofDay.find(x => sitsInside(b, x))]));
+        const list = ofDay
+            .filter(b => !hostOf.get(b.id))
             .map(b => ({ b, s: minsOf(iso, b.starts_at), e: minsOf(iso, b.ends_at) }))
             .sort((a, z) => a.s - z.s || z.e - a.e);
         const placed = [];
@@ -76,6 +79,18 @@
             clusterEnd = Math.max(clusterEnd, ev.e);
         }
         flush();
+        for (const ev of placed) {
+            ev.left = (ev.col / ev.cols) * 100;
+            ev.width = 100 / ev.cols;
+            ev.gaps = isInactive(ev.b) ? [] : bookingGaps(ev.b).map(g => ({ s: minsOf(iso, g.start), e: minsOf(iso, g.end) }));
+        }
+        const inset = compact ? 0.15 : 0.3;
+        for (const b of ofDay.filter(x => hostOf.get(x.id))) {
+            const on = placed.find(ev => ev.b.id === hostOf.get(b.id).id);
+            if (!on) continue;
+            placed.push({ b, s: minsOf(iso, b.starts_at), e: minsOf(iso, b.ends_at), gaps: [], nested: true,
+                          left: on.left + on.width * inset, width: on.width * (1 - inset) });
+        }
         return placed;
     }
 
@@ -86,6 +101,8 @@
         .map(b => ({ ...b, s: Math.max(range.start, b.start), e: Math.min(range.end, b.end) }))
         .filter(b => b.e > b.s);
     const span = (b) => `${formatTime(minutesToHHMM(b.start))}–${formatTime(minutesToHHMM(b.end))}`;
+
+    const span2 = (g) => span({ start: g.s, end: g.e });
 
     // "Now" line, refreshed every minute.
     let now = $state(Date.now());
@@ -169,13 +186,18 @@
             {#each placed as ev (ev.b.id)}
                 {@const b = ev.b}
                 <button type="button" class="block s-{b.status}" class:inactive={isInactive(b)}
-                    class:short={ev.e - ev.s < 45}
+                    class:short={ev.e - ev.s < 45} class:nested={ev.nested} class:has-gaps={ev.gaps.length > 0}
                     class:selected={selectedId === b.id}
                     style="top: {y(ev.s)}px; height: {Math.max((ev.e - ev.s) * PX_PER_MIN, MIN_BLOCK)}px;
-                           left: calc({(ev.col / ev.cols) * 100}% + 2px); width: calc({100 / ev.cols}% - 4px)"
-                    aria-label="{showTime(b.starts_at)} to {showTime(b.ends_at)}, {fullName(b)}, {services(b)}, {STATUS_LABEL[b.status]}"
+                           left: calc({ev.left}% + 2px); width: calc({ev.width}% - {ev.nested ? 8 : 4}px)"
+                    aria-label="{showTime(b.starts_at)} to {showTime(b.ends_at)}, {fullName(b)}, {services(b)}, {STATUS_LABEL[b.status]}{ev.gaps.length ? `, waiting ${ev.gaps.map(span2).join(' and ')}` : ''}{ev.nested ? ", in another client's waiting time" : ''}"
                     aria-pressed={selectedId === b.id}
                     onclick={() => onselect?.(b)}>
+                    {#each ev.gaps as g}
+                        <span class="gap" style="top: {(g.s - ev.s) * PX_PER_MIN - 1}px; height: {(g.e - g.s) * PX_PER_MIN}px">
+                            {#if !compact}<span>Waiting{b.gaps_open === false ? ' · closed' : ''}</span>{/if}
+                        </span>
+                    {/each}
                     <span class="t">{showTime(b.starts_at)}{#if !compact}–{showTime(b.ends_at)}{/if}</span>
                     <span class="n">{fullName(b)}</span>
                     {#if !compact}<span class="s">{services(b)}</span>{/if}
@@ -374,6 +396,34 @@
         outline: 2px solid var(--adm-inverse-bg);
         outline-offset: 1px;
         z-index: 2;
+    }
+    .block.nested,
+    .block.nested:hover {
+        z-index: 2;
+    }
+    /* Keep the text in the hands-on part: name and service share a line. */
+    .block.has-gaps:not(.short) {
+        align-content: flex-start;
+        align-items: baseline;
+        column-gap: 0.5rem;
+        flex-flow: row wrap;
+    }
+    .has-gaps .t {
+        width: 100%;
+    }
+    .gap {
+        align-items: flex-end;
+        display: flex;
+        background: repeating-linear-gradient(135deg, var(--adm-hatch-a) 0 6px, var(--adm-hatch-b) 6px 12px);
+        border-block: 1px dashed var(--adm-border-strong);
+        color: var(--adm-text-muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+        left: 0;
+        overflow: hidden;
+        padding: 0.125rem 0.5rem;
+        position: absolute;
+        right: 0;
     }
     .s-confirmed {
         background-color: var(--adm-accent-soft);

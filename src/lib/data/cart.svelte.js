@@ -70,7 +70,20 @@ export class CartState {
     isMonthLoaded = (key) => isMonthLoaded(this.schedule, key);
     /** The first month that can have bookable days (tomorrow's). */
     get firstMonth() { return monthKey(addDays(salonToday(this.schedule), 1)) }
-    slotsFor = (isoDate) => getSlots(this.schedule, isoDate, this.totalDuration);
+    slotsFor = (isoDate) => getSlots(this.schedule, isoDate, this.totalDuration, this.visitGaps);
+
+    /** The visit's own waiting periods, with services in the salon's order (as the database does). */
+    get visitGaps() {
+        const { categories, services } = this.catalogue;
+        const rank = (s) => categories.findIndex(c => c.id === s.category) * 10_000 + services.indexOf(s);
+        let at = 0;
+        const gaps = [];
+        for (const s of this.selectedItems.toSorted((a, z) => rank(a) - rank(z))) {
+            if (s.wait) gaps.push({ start: at + s.wait.after, end: at + s.wait.after + s.wait.length });
+            at += s.duration;
+        }
+        return gaps;
+    }
 
     get detailErrors() {
         const c = this.client;
