@@ -127,7 +127,7 @@
         // ondateclick();
     };
 
-    let blockedDates = [ '20261116' ];
+    let blockedDates = [ '20261116', '20261202', '20261209', '20261210' ];
 </script>
 
 {#snippet calendarDay(options)}
