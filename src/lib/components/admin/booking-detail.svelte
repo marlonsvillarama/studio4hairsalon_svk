@@ -1,7 +1,8 @@
 <script>
+    import { tick } from 'svelte';
     import { getSupabase } from '$lib/supabase';
     import { salonInstant } from '$lib/data/availability';
-    import { SALON_TZ, salonDay, salonTime, showTime, showDay, dollars, showPhone, adminError, STATUS_LABEL, bookingGaps, sitsInside } from '$lib/admin';
+    import { SALON_TZ, salonDay, salonTime, showTime, showDay, showShortDay, dollars, showPhone, adminError, STATUS_LABEL, bookingGaps, sitsInside } from '$lib/admin';
     import { invoiceForBooking, invoiceNumber } from '$lib/invoices';
     import Switch from './switch.svelte';
     import InvoiceEditor from './invoice-editor.svelte';
@@ -50,6 +51,9 @@
         mode = '';
         actionError = '';
         cancelReason = '';
+        noteOpen = false;
+        noteText = '';
+        noteError = '';
         newDate = salonDay(b.starts_at);
         newTime = salonTime(b.starts_at);
     });
@@ -92,6 +96,49 @@
     }
 
     const setStatus = (status) => update({ status });
+
+    // Staff notes (s4_booking_notes): staff only, never shown to clients.
+    const NOTE_MAX = 1000;
+    let noteOpen = $state(false);
+    let noteText = $state('');
+    let noteError = $state('');
+    let noteSaving = $state(false);
+    let noteEl = $state();
+    let staffNotes = $derived((b.staff_notes ?? []).toSorted((a, z) => z.created_at.localeCompare(a.created_at)));
+    const noteWhen = (t) => `${showShortDay(t)}, ${showTime(t)}`;
+    async function openNote() {
+        noteOpen = true;
+        noteError = '';
+        await tick();
+        noteEl?.focus();
+    }
+    function closeNote() {
+        noteOpen = false;
+        noteText = '';
+        noteError = '';
+    }
+    async function saveNote(e) {
+        e?.preventDefault();
+        const body = noteText.trim();
+        if (!body) { noteError = 'Write a note first.'; noteEl?.focus(); return; }
+        noteSaving = true;
+        noteError = '';
+        const { error } = await sb.from('s4_booking_notes').insert({ booking_id: b.id, body });
+        noteSaving = false;
+        if (error) { noteError = adminError(error); return; }
+        closeNote();
+        await onchanged?.();
+    }
+    const noteKeydown = (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveNote(e); };
+    let deletingNote = $state(null);
+    async function deleteNote(n) {
+        deletingNote = n.id;
+        actionError = '';
+        const { error } = await sb.from('s4_booking_notes').delete().eq('id', n.id);
+        deletingNote = null;
+        if (error) { actionError = adminError(error); return; }
+        await onchanged?.();
+    }
 
     // Delete for good (e.g. a test or a mistake). A booking with a tax invoice
     // can't be deleted: the database refuses (23503) to protect tax records.
@@ -169,10 +216,56 @@
             </dd></div>
         {/if}
         {#if host}<div><dt>During</dt><dd>{nameOf(host)}'s waiting time</dd></div>{/if}
-        {#if b.notes}<div><dt>Notes</dt><dd class="notes">"{b.notes}"</dd></div>{/if}
+        {#if b.notes}<div><dt>Client’s note</dt><dd class="notes">"{b.notes}"</dd></div>{/if}
         {#if b.cancel_reason}<div><dt>Cancelled</dt><dd>{b.cancel_reason}</dd></div>{/if}
         <div><dt>Reference</dt><dd class="ref">{b.reference}</dd></div>
     </dl>
+
+    <section class="staff-notes" aria-labelledby="notes-title-{b.id}">
+        <div class="notes-head">
+            <h3 id="notes-title-{b.id}">Notes <span class="muted">· staff only</span></h3>
+            {#if !noteOpen}
+                <button type="button" class="secondary with-icon small" onclick={openNote}>
+                    <i class="ph ph-note-pencil" aria-hidden="true"></i> Add note
+                </button>
+            {/if}
+        </div>
+        {#if noteOpen}
+            <form class="inline" onsubmit={saveNote}>
+                <label for="note-{b.id}" class="sr-only">New note</label>
+                <textarea id="note-{b.id}" bind:this={noteEl} bind:value={noteText} rows="3" maxlength={NOTE_MAX}
+                    onkeydown={noteKeydown} oninput={() => noteError = ''} placeholder="e.g. Used colour 6.1, 30 min"
+                    aria-invalid={!!noteError} aria-describedby="note-help-{b.id}"></textarea>
+                <p id="note-help-{b.id}" class="note-help" class:error={!!noteError} role={noteError ? 'alert' : undefined}>
+                    {#if noteError}{noteError}
+                    {:else if noteText.length > NOTE_MAX - 100}{NOTE_MAX - noteText.length} characters left
+                    {:else}Only staff can see notes.{/if}
+                </p>
+                <div class="actions">
+                    <button type="submit" class="primary" disabled={noteSaving}>{noteSaving ? 'Saving…' : 'Save note'}</button>
+                    <button type="button" class="secondary" onclick={closeNote}>Cancel</button>
+                </div>
+            </form>
+        {/if}
+        {#if staffNotes.length}
+            <ul class="note-list">
+                {#each staffNotes as n (n.id)}
+                    <li>
+                        <p class="note-body">{n.body}</p>
+                        <div class="note-meta">
+                            <span>{n.author?.display_name ?? 'Staff'} · {noteWhen(n.created_at)}</span>
+                            <button type="button" class="note-delete" aria-label="Delete note from {noteWhen(n.created_at)}"
+                                title="Delete note" disabled={deletingNote === n.id} onclick={() => deleteNote(n)}>
+                                <i class="ph ph-trash" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </li>
+                {/each}
+            </ul>
+        {:else if !noteOpen}
+            <p class="muted none">No notes yet.</p>
+        {/if}
+    </section>
 
     {#if b.status === 'confirmed'}
         {#if mode === 'cancel'}
@@ -389,6 +482,86 @@
         flex-direction: column;
         font-weight: 600;
         gap: 0.25rem;
+    }
+    .staff-notes {
+        border-top: 1px solid var(--adm-border);
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+        padding-top: 0.875rem;
+    }
+    .notes-head {
+        align-items: center;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+    }
+    .notes-head h3 {
+        color: var(--adm-text);
+        font: 600 0.9375rem / 1.3 var(--font-default);
+    }
+    .notes-head h3 .muted {
+        font-weight: 400;
+    }
+    .small {
+        min-height: 2.75rem;
+        padding: 0 0.875rem;
+    }
+    .staff-notes textarea {
+        resize: vertical;
+        width: 100%;
+    }
+    .note-help {
+        color: var(--adm-text-muted);
+        font-size: 0.8125rem;
+    }
+    .note-help.error {
+        color: var(--adm-danger);
+        font-weight: 600;
+    }
+    .note-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .note-list li {
+        background-color: var(--adm-sunken);
+        border: 1px solid var(--adm-border);
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.25rem 0.25rem 0.75rem;
+    }
+    .note-body {
+        color: var(--adm-text);
+        overflow-wrap: anywhere;
+        padding-right: 0.5rem;
+        white-space: pre-line;
+    }
+    .note-meta {
+        align-items: center;
+        color: var(--adm-text-muted);
+        display: flex;
+        font-size: 0.8125rem;
+        justify-content: space-between;
+    }
+    .note-delete {
+        border-radius: 50%;
+        color: var(--adm-text-muted);
+        cursor: pointer;
+        display: grid;
+        font-size: 1rem;
+        height: 2.75rem;
+        place-items: center;
+        width: 2.75rem;
+    }
+    .note-delete:hover {
+        background-color: var(--adm-danger-bg);
+        color: var(--adm-danger);
+    }
+    .none {
+        font-size: 0.875rem;
     }
     .remove {
         border-top: 1px solid var(--adm-border);

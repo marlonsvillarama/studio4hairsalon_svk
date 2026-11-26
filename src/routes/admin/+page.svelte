@@ -62,6 +62,7 @@
             sb.from('s4_bookings')
                 .select(`id, reference, starts_at, ends_at, status, total_cents, has_variable_price, gold_card, notes, cancel_reason, source, gaps, gaps_open,
                          client:s4_clients ( first_name, last_name, phone_e164, email, email_verified ),
+                         staff_notes:s4_booking_notes ( id, body, created_at, author:s4_staff ( display_name ) ),
                          items:s4_booking_items ( name, price_cents, gold_card_applied, sort_order,
                              service:s4_services ( is_active, deleted_at, category:s4_categories ( is_active, deleted_at ) ) )`)
                 .gte('starts_at', from).lt('starts_at', to)
