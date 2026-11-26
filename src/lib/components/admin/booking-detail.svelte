@@ -5,9 +5,10 @@
     import { invoiceForBooking, invoiceNumber } from '$lib/invoices';
     import Switch from './switch.svelte';
     import InvoiceEditor from './invoice-editor.svelte';
+    import Modal from './modal.svelte';
 
     /** booking: a row from s4_bookings with client + items embedded. bookings: everything loaded, to find neighbours. */
-    let { booking: b, bookings = [], onchanged, onclose } = $props();
+    let { booking: b, bookings = [], onchanged, onclose, ondeleted } = $props();
 
     const sb = getSupabase();
     let busy = $state(false);
@@ -91,6 +92,33 @@
     }
 
     const setStatus = (status) => update({ status });
+
+    // Delete for good (e.g. a test or a mistake). A booking with a tax invoice
+    // can't be deleted: the database refuses (23503) to protect tax records.
+    let deleteOpen = $state(false);
+    let deleting = $state(false);
+    let deleteError = $state('');
+    function askDelete() {
+        deleteError = '';
+        deleteOpen = true;
+    }
+    async function deleteBooking() {
+        deleting = true;
+        deleteError = '';
+        const { data, error } = await sb.from('s4_bookings').delete().eq('id', b.id).select('id');
+        deleting = false;
+        if (error) {
+            deleteError = error.code === '23503'
+                ? "This booking has a tax invoice, so it can't be deleted. Cancel it instead."
+                : adminError(error);
+            return;
+        }
+        deleteOpen = false;
+        await onchanged?.();
+        if (!data?.length) { actionError = 'That booking no longer exists.'; return; }
+        ondeleted?.();
+        onclose?.();
+    }
     const cancel = () => update({
         status: 'cancelled',
         cancelled_at: new Date().toISOString(),
@@ -197,7 +225,26 @@
         </div>
     {/if}
     {#if actionError}<p class="error" role="alert">{actionError}</p>{/if}
+
+    {#if !invoice}
+        <div class="remove">
+            <button type="button" class="delete" onclick={askDelete}>
+                <i class="ph ph-trash" aria-hidden="true"></i> Delete booking
+            </button>
+        </div>
+    {/if}
 </article>
+
+<Modal bind:open={deleteOpen} title="Delete booking?">
+    <p>This permanently removes <strong>{b.client?.first_name} {b.client?.last_name ?? ''}</strong>’s booking on
+        <strong>{showDay(b.starts_at)}, {showTime(b.starts_at)}</strong> ({b.reference}). It can’t be undone.</p>
+    {#if b.status !== 'cancelled'}<p class="muted confirm-hint">To keep a record, cancel it instead.</p>{/if}
+    {#if deleteError}<p class="error" role="alert">{deleteError}</p>{/if}
+    {#snippet footer()}
+        <button type="button" class="secondary" onclick={() => deleteOpen = false}>Keep booking</button>
+        <button type="button" class="danger" disabled={deleting} onclick={deleteBooking}>{deleting ? 'Deleting…' : 'Delete booking'}</button>
+    {/snippet}
+</Modal>
 
 <InvoiceEditor bind:open={invoiceOpen} {invoiceId} onchanged={loadInvoiceRow} />
 
@@ -342,6 +389,29 @@
         flex-direction: column;
         font-weight: 600;
         gap: 0.25rem;
+    }
+    .remove {
+        border-top: 1px solid var(--adm-border);
+        padding-top: 0.5rem;
+    }
+    .delete {
+        align-items: center;
+        border-radius: 0.25rem;
+        color: var(--adm-danger);
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.875rem;
+        font-weight: 600;
+        gap: 0.375rem;
+        margin-left: -0.5rem;
+        min-height: 2.75rem;
+        padding: 0 0.5rem;
+    }
+    .delete:hover {
+        background-color: var(--adm-danger-bg);
+    }
+    .confirm-hint {
+        margin-top: 0.5rem;
     }
     .pair {
         display: flex;

@@ -94,6 +94,13 @@
 
     // New booking (phone or walk-in): show its day and open it.
     let createOpen = $state(false);
+
+    // A short confirmation after deleting (the details panel has closed by then).
+    let notice = $state('');
+    function deleted() {
+        notice = 'Booking deleted.';
+        setTimeout(() => { if (notice === 'Booking deleted.') notice = ''; }, 4000);
+    }
     async function created(id, day) {
         if (view !== 'day' || date !== day) await go('day', day);
         await load();
@@ -145,6 +152,8 @@
     </div>
 </header>
 
+<p class="notice" role="status">{#if notice}<i class="ph ph-check-circle" aria-hidden="true"></i> {notice}{/if}</p>
+
 <div class="layout" class:has-detail={!!selected}>
     <section class="calendar" aria-label="{rangeTitle(view, date)} calendar" aria-busy={loading}>
         {#if loadError}
@@ -168,7 +177,7 @@
 
     {#if selected}
         <aside class="side" bind:this={detailEl} aria-label="Booking details">
-            <BookingDetail booking={selected} {bookings} onchanged={() => load()} onclose={closeDetail} />
+            <BookingDetail booking={selected} {bookings} onchanged={() => load()} onclose={closeDetail} ondeleted={deleted} />
         </aside>
     {/if}
 </div>
@@ -270,6 +279,19 @@
         min-height: 2.75rem;
     }
 
+    .notice {
+        align-items: center;
+        color: var(--adm-success-text);
+        display: flex;
+        font-weight: 600;
+        gap: 0.375rem;
+        margin: -0.5rem 0 0.75rem;
+        min-height: 1.5rem;
+    }
+    .notice:empty {
+        margin: 0;
+        min-height: 0;
+    }
     .layout {
         display: grid;
         gap: 1.25rem;
