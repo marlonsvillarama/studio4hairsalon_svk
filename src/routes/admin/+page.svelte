@@ -10,6 +10,7 @@
     import DayTimeline from '$lib/components/admin/day-timeline.svelte';
     import MonthGrid from '$lib/components/admin/month-grid.svelte';
     import BookingDetail from '$lib/components/admin/booking-detail.svelte';
+    import BookingCreate from '$lib/components/admin/booking-create.svelte';
 
     const sb = getSupabase();
     const VIEWS = [
@@ -27,7 +28,7 @@
         const params = new URLSearchParams(page.url.searchParams);
         params.set('view', nextView);
         params.set('date', nextDate);
-        goto(`?${params}`, { replaceState: true, keepFocus: true, noScroll: true });
+        return goto(`?${params}`, { replaceState: true, keepFocus: true, noScroll: true });
     }
     const step = (dir) => go(view, view === 'day' ? addDays(date, dir) : view === 'week' ? addDays(date, 7 * dir) : addMonths(date, dir));
     const openDay = (iso) => go('day', iso);
@@ -90,6 +91,15 @@
         if (window.matchMedia('(max-width: 63.99rem)').matches) detailEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     const closeDetail = () => selectedId = null;
+
+    // New booking (phone or walk-in): show its day and open it.
+    let createOpen = $state(false);
+    async function created(id, day) {
+        if (view !== 'day' || date !== day) await go('day', day);
+        await load();
+        const b = bookings.find(x => x.id === id);
+        if (b) select(b);
+    }
     const onkeydown = (e) => { if (e.key === 'Escape' && selectedId) closeDetail(); };
 </script>
 
@@ -97,7 +107,12 @@
 
 <header class="toolbar">
     <div class="title">
-        <h1>Bookings</h1>
+        <div class="heading">
+            <h1>Bookings</h1>
+            <button type="button" class="primary with-icon" onclick={() => createOpen = true}>
+                <i class="ph ph-plus" aria-hidden="true"></i> New booking
+            </button>
+        </div>
         <p class="range">
             {rangeTitle(view, date)}
             {#if !loading && view !== 'month'}<span class="muted">· {dayCount} {dayCount === 1 ? 'booking' : 'bookings'}</span>{/if}
@@ -158,6 +173,8 @@
     {/if}
 </div>
 
+<BookingCreate bind:open={createOpen} day={date} {hours} oncreated={created} />
+
 <style>
     .toolbar {
         align-items: flex-end;
@@ -166,6 +183,12 @@
         gap: 1rem 1.5rem;
         justify-content: space-between;
         margin-bottom: 1.25rem;
+    }
+    .heading {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1rem;
     }
     .range {
         color: var(--adm-text);

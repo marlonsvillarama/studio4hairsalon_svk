@@ -4,7 +4,7 @@
      * page behind is inert, and focus returns to the button that opened it.
      * On narrow screens it becomes a bottom sheet.
      */
-    let { open = $bindable(false), title, onclose, children, footer } = $props();
+    let { open = $bindable(false), title, onclose, children, footer, wide = false } = $props();
 
     let dialog = $state();
     const id = `modal-${Math.random().toString(36).slice(2, 8)}`;
@@ -26,7 +26,7 @@
     }
 </script>
 
-<dialog bind:this={dialog} aria-labelledby="{id}-title" onclose={handleClose} {onclick}>
+<dialog bind:this={dialog} class:wide aria-labelledby="{id}-title" onclose={handleClose} {onclick}>
     {#if open}
         <div class="sheet">
             <header>
@@ -54,6 +54,9 @@
         max-width: none;
         padding: 0;
         width: min(32rem, 100vw - 2rem);
+    }
+    dialog.wide {
+        width: min(44rem, 100vw - 2rem);
     }
     dialog::backdrop {
         background-color: var(--adm-backdrop);
@@ -118,6 +121,9 @@
         dialog {
             margin: auto 0 0;
             max-height: 92dvh;
+            width: 100vw;
+        }
+        dialog.wide {
             width: 100vw;
         }
         .sheet {

@@ -129,6 +129,7 @@
                 {/each}
             </ul>
         </dd></div>
+        {#if b.source === 'admin'}<div><dt>Booked</dt><dd>By staff</dd></div>{/if}
         <div><dt>Total</dt><dd><strong>{b.has_variable_price ? 'from ' : ''}{dollars(b.total_cents)}</strong></dd></div>
         {#if gaps.length}
             <div><dt>Waiting</dt><dd>
