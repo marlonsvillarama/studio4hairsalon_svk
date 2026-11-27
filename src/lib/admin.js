@@ -1,6 +1,8 @@
 // Helpers for the /admin pages. Everything is shown in salon time.
 
 import { salonInstant } from '$lib/data/availability';
+import { getSupabase } from '$lib/supabase';
+import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
 
 export const SALON_TZ = 'Pacific/Auckland';
 
@@ -25,11 +27,12 @@ export const dollars = (cents) => new Intl.NumberFormat('en-NZ', {
     style: 'currency', currency: 'NZD', minimumFractionDigits: 0, maximumFractionDigits: 2
 }).format((cents ?? 0) / 100);
 
-/** "+64221885240" → "022 188 5240" for display; leaves other formats alone. */
+/** "+64221885240" → "022 188 5240"; other countries "+61 412 345 678". */
 export const showPhone = (e164) => {
-    if (!e164?.startsWith('+64')) return e164 || '';
-    const n = `0${e164.slice(3)}`;
-    return n.length === 10 ? `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}` : n;
+    if (!e164) return '';
+    const p = parsePhoneNumberFromString(e164);
+    if (!p) return e164;
+    return p.countryCallingCode === '64' ? p.formatNational() : p.formatInternational();
 };
 
 /** Friendly text for a Supabase error during an admin action. */
@@ -83,16 +86,18 @@ export const monthGrid = (iso) => {
 export const minutesFrom = (iso, instant, dayStartMs) => (new Date(instant).getTime() - dayStartMs) / 60_000;
 
 /** Toolbar heading for the current view. */
-export const rangeTitle = (view, iso) => {
+// short: phone-width version ("Sat, 28 Nov 2026", "23–29 Nov 2026").
+export const rangeTitle = (view, iso, short = false) => {
     const d = new Date(isoToUtc(iso));
     const fmtUtc = (opts) => new Intl.DateTimeFormat('en-NZ', { timeZone: 'UTC', ...opts });
-    if (view === 'day') return fmtUtc({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+    const month = short ? 'short' : 'long';
+    if (view === 'day') return fmtUtc({ weekday: short ? 'short' : 'long', day: 'numeric', month, year: 'numeric' }).format(d);
     if (view === 'month') return fmtUtc({ month: 'long', year: 'numeric' }).format(d);
     const start = new Date(isoToUtc(startOfWeek(iso)));
     const end = new Date(isoToUtc(addDays(startOfWeek(iso), 6)));
     const sameMonth = start.getUTCMonth() === end.getUTCMonth();
     return sameMonth
-        ? `${start.getUTCDate()}–${fmtUtc({ day: 'numeric', month: 'long', year: 'numeric' }).format(end)}`
+        ? `${start.getUTCDate()}–${fmtUtc({ day: 'numeric', month, year: 'numeric' }).format(end)}`
         : `${fmtUtc({ day: 'numeric', month: 'short' }).format(start)} – ${fmtUtc({ day: 'numeric', month: 'short', year: 'numeric' }).format(end)}`;
 };
 
@@ -116,6 +121,67 @@ export const bookingGaps = (b) => {
 export const sitsInside = (inner, host) => inner.id !== host.id && !isInactive(inner) && !isInactive(host)
     && bookingGaps(host).some(g => g.start <= new Date(inner.starts_at).getTime() && g.end >= new Date(inner.ends_at).getTime());
 
+// ─── paged tables ────────────────────────────────────────────────────────
+
+export const PAGE_SIZES = [10, 20, 50];
+export const DEFAULT_PAGE_SIZE = 20;
+
+/** Page 3 of 20 → [40, 59] for PostgREST .range(). */
+export const pageRange = (page, size) => [(page - 1) * size, page * size - 1];
+
+/** The rows-per-page choice for a table, remembered on this device. */
+export function savedPageSize(table) {
+    try {
+        const n = Number(localStorage.getItem(`s4.admin.pageSize.${table}`));
+        return PAGE_SIZES.includes(n) ? n : DEFAULT_PAGE_SIZE;
+    } catch { return DEFAULT_PAGE_SIZE; }
+}
+export function savePageSize(table, n) {
+    try { localStorage.setItem(`s4.admin.pageSize.${table}`, String(n)); } catch { /* private mode: fine */ }
+}
+
+/** Read a positive page number / allowed page size from the URL. */
+export const urlPage = (url, key = 'page') => Math.max(1, Number.parseInt(url.searchParams.get(key) ?? '', 10) || 1);
+export const urlSize = (url, table, key = 'size') => {
+    const n = Number(url.searchParams.get(key));
+    return PAGE_SIZES.includes(n) ? n : savedPageSize(table);
+};
+
+/** Text for a PostgREST ilike filter inside .or(): wildcards escaped, separators removed. */
+export const likeText = (q) => q.replace(/[,()]/g, ' ').replace(/[\\%_]/g, '\\$&').trim();
+
+// ─── opening hours and the clock ─────────────────────────────────────────
+
+const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+/** Opening hours as { [weekday]: { open, close } (minutes) | null }. Throws on error. */
+export async function loadHours() {
+    const { data, error } = await getSupabase().from('s4_business_hours').select('weekday, is_open, opens_at, closes_at');
+    if (error) throw error;
+    return Object.fromEntries(data.map(d => [d.weekday, d.is_open ? { open: toMinutes(d.opens_at), close: toMinutes(d.closes_at) } : null]));
+}
+
+/**
+ * Calls `tick(Date.now())` at the start of every minute, and straight away
+ * when the tab becomes visible again (background tabs slow their timers).
+ * Returns a function that stops it.
+ */
+export function everyMinute(tick) {
+    let timer;
+    const schedule = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { tick(Date.now()); schedule(); }, 60_000 - (Date.now() % 60_000) + 50);
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') { tick(Date.now()); schedule(); } };
+    document.addEventListener('visibilitychange', onVisible);
+    schedule();
+    return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); };
+}
+
+/** Whether two bookings (both going ahead) share any time, e.g. interleaved in each other's waiting time. */
+export const overlapsWith = (a, z) => a.id !== z.id && !isInactive(a) && !isInactive(z)
+    && new Date(a.starts_at) < new Date(z.ends_at) && new Date(z.starts_at) < new Date(a.ends_at);
+
 // ─── time off on a given day ─────────────────────────────────────────────
 
 /** 750 → "12:30" */
@@ -135,7 +201,8 @@ export function blocksForDay(iso, timeOff, hours) {
         .map(t => ({
             start: Math.max(0, (new Date(t.starts_at).getTime() - dayStart) / 60_000),
             end: Math.min(dayLen, (new Date(t.ends_at).getTime() - dayStart) / 60_000),
-            reason: t.reason ?? ''
+            reason: t.reason ?? '',
+            hold: t.kind === 'hold'
         }))
         .filter(b => b.end > b.start)
         .sort((a, z) => a.start - z.start);

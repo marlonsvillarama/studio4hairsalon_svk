@@ -1,7 +1,7 @@
 <script>
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import { salonInstant, formatTime } from '$lib/data/availability';
-    import { SALON_TZ, salonDay, showTime, dayLabel, weekdayOf, isInactive, STATUS_LABEL, blocksForDay, minutesToHHMM, bookingGaps, sitsInside } from '$lib/admin';
+    import { SALON_TZ, salonDay, showTime, dayLabel, weekdayOf, isInactive, STATUS_LABEL, blocksForDay, minutesToHHMM, bookingGaps, sitsInside, everyMinute } from '$lib/admin';
 
     /**
      * days:       ["YYYY-MM-DD", …] — one column each (1 for Day view, 7 for Week view)
@@ -21,6 +21,10 @@
         onselect,
         ondayclick
     } = $props();
+
+    // Width of one day column, to tell when blocks get crowded (phones).
+    let timelineW = $state(0);
+    let narrow = $derived(!compact && timelineW > 0 && (timelineW - 68) / days.length < 480);
 
     const PX_PER_MIN = 1.6;          // 30 min ≈ 48px
     const MIN_BLOCK = 26;            // px: short bookings stay clickable
@@ -84,7 +88,9 @@
             ev.width = 100 / ev.cols;
             ev.gaps = isInactive(ev.b) ? [] : bookingGaps(ev.b).map(g => ({ s: minsOf(iso, g.start), e: minsOf(iso, g.end) }));
         }
-        const inset = compact ? 0.15 : 0.3;
+        // Narrow columns: the visit takes the right 60%, so the host's
+        // "Waiting" label stays readable on the left.
+        const inset = narrow ? 0.4 : compact ? 0.15 : 0.3;
         for (const b of ofDay.filter(x => hostOf.get(x.id))) {
             const on = placed.find(ev => ev.b.id === hostOf.get(b.id).id);
             if (!on) continue;
@@ -104,19 +110,37 @@
 
     const span2 = (g) => span({ start: g.s, end: g.e });
 
-    // "Now" line, refreshed every minute.
+    // Current-time marker, moved at the start of every minute.
     let now = $state(Date.now());
-    onMount(() => {
-        const t = setInterval(() => now = Date.now(), 60_000);
-        return () => clearInterval(t);
-    });
+    onMount(() => everyMinute((t) => now = t));
     const nowMins = (iso) => (now - dayStart(iso)) / 60_000;
+    // Minutes since midnight on today's column, when today is shown and inside the hours drawn.
+    let nowAt = $derived.by(() => {
+        if (!days.includes(today)) return null;
+        const m = nowMins(today);
+        return m >= range.start && m <= range.end ? m : null;
+    });
+    let nowLabel = $derived(nowAt == null ? '' : formatTime(minutesToHHMM(Math.floor(nowAt))).replace(/am|pm/, (x) => x.toUpperCase()));
+    // Day view: hide an hour label the time label would overlap.
+    const nearNow = (m) => !compact && nowAt != null && Math.abs(m - nowAt) < 12;
+
+    // Opening today's Day view scrolls the marker into view, once per day shown.
+    let nowEl = $state();
+    let scrolledFor = '';
+    $effect(() => {
+        if (compact || nowAt == null || !nowEl || scrolledFor === today) return;
+        scrolledFor = today;
+        tick().then(() => {
+            const r = nowEl.getBoundingClientRect();
+            if (r.top < 80 || r.bottom > window.innerHeight - 40) nowEl.scrollIntoView({ block: 'center', inline: 'nearest' });
+        });
+    });
 
     const services = (b) => b.items.toSorted((a, z) => a.sort_order - z.sort_order).map(i => i.name).join(', ');
     const fullName = (b) => `${b.client?.first_name ?? ''} ${b.client?.last_name ?? ''}`.trim() || 'Client';
 </script>
 
-<div class="timeline" class:compact style="--cols: {days.length}">
+<div class="timeline" class:compact class:narrow bind:clientWidth={timelineW} style="--cols: {days.length}">
     <!-- Column headers -->
     <div class="corner" aria-hidden="true"></div>
     {#each days as iso (iso)}
@@ -142,8 +166,11 @@
     <!-- Time gutter -->
     <div class="gutter" style="height: {height}px" aria-hidden="true">
         {#each hourMarks as m}
-            <span class="hour" style="top: {y(m)}px">{showTime(salonInstant(days[0], `${String(Math.floor(m / 60)).padStart(2, '0')}:00`, SALON_TZ))}</span>
+            <span class="hour" class:hidden={nearNow(m)} style="top: {y(m)}px">{showTime(salonInstant(days[0], `${String(Math.floor(m / 60)).padStart(2, '0')}:00`, SALON_TZ))}</span>
         {/each}
+        {#if nowAt != null && !compact}
+            <span class="now-label" style="top: {y(nowAt)}px">{nowLabel}</span>
+        {/if}
     </div>
 
     <!-- Day columns -->
@@ -172,10 +199,10 @@
                 </div>
             {:else}
                 {#each bands(iso) as band}
-                    <div class="blocked" style="top: {y(band.s)}px; height: {(band.e - band.s) * PX_PER_MIN}px"
-                        title="Blocked {span(band)}{band.reason ? ` · ${band.reason}` : ''}">
+                    <div class="blocked" class:hold={band.hold} style="top: {y(band.s)}px; height: {(band.e - band.s) * PX_PER_MIN}px"
+                        title="{band.hold ? 'Hold' : 'Blocked'} {span(band)}{band.reason ? ` · ${band.reason}` : ''}">
                         <span class="blocked-label">
-                            <strong>Blocked</strong>
+                            <strong>{band.hold ? 'Hold' : 'Blocked'}</strong>
                             <span class="when">{span(band)}</span>
                             {#if band.reason && !compact}<span class="why">{'· '}{band.reason}</span>{/if}
                         </span>
@@ -187,10 +214,11 @@
                 {@const b = ev.b}
                 <button type="button" class="block s-{b.status}" class:inactive={isInactive(b)}
                     class:short={ev.e - ev.s < 45} class:nested={ev.nested} class:has-gaps={ev.gaps.length > 0}
-                    class:selected={selectedId === b.id}
+                    class:selected={selectedId === b.id} class:stack={ev.nested && narrow}
+                    title="{showTime(b.starts_at)}–{showTime(b.ends_at)} · {fullName(b)} · {services(b)}"
                     style="top: {y(ev.s)}px; height: {Math.max((ev.e - ev.s) * PX_PER_MIN, MIN_BLOCK)}px;
                            left: calc({ev.left}% + 2px); width: calc({ev.width}% - {ev.nested ? 8 : 4}px)"
-                    aria-label="{showTime(b.starts_at)} to {showTime(b.ends_at)}, {fullName(b)}, {services(b)}, {STATUS_LABEL[b.status]}{ev.gaps.length ? `, waiting ${ev.gaps.map(span2).join(' and ')}` : ''}{ev.nested ? ", in another client's waiting time" : ''}"
+                    aria-label="{showTime(b.starts_at)} to {showTime(b.ends_at)}, {fullName(b)}, {services(b)}, {STATUS_LABEL[b.status]}{b.kind === 'staff' ? ', friends and family' : ''}{ev.gaps.length ? `, waiting ${ev.gaps.map(span2).join(' and ')}` : ''}{ev.nested ? ", in another client's waiting time" : ''}"
                     aria-pressed={selectedId === b.id}
                     onclick={() => onselect?.(b)}>
                     {#each ev.gaps as g}
@@ -199,13 +227,13 @@
                         </span>
                     {/each}
                     <span class="t">{showTime(b.starts_at)}{#if !compact}–{showTime(b.ends_at)}{/if}</span>
-                    <span class="n">{fullName(b)}</span>
-                    {#if !compact}<span class="s">{services(b)}</span>{/if}
+                    <span class="n">{fullName(b)}{#if b.kind === 'staff'}<span class="fam" title="Friends &amp; family">Family</span>{/if}</span>
+                    {#if !(ev.nested && narrow) && (!compact || ev.e - ev.s >= 45)}<span class="s">{services(b)}</span>{/if}
                 </button>
             {/each}
 
-            {#if iso === today && nowMins(iso) >= range.start && nowMins(iso) <= range.end}
-                <div class="now" style="top: {y(nowMins(iso))}px" aria-hidden="true"></div>
+            {#if iso === today && nowAt != null}
+                <div class="now" bind:this={nowEl} style="top: {y(nowAt)}px" aria-hidden="true"></div>
             {/if}
         </div>
     {/each}
@@ -293,6 +321,19 @@
     .hour:first-child {
         transform: none;
     }
+    .hour.hidden {
+        visibility: hidden;
+    }
+    .now-label {
+        color: var(--adm-now);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        position: absolute;
+        right: 0.5rem;
+        transform: translateY(-50%);
+        white-space: nowrap;
+    }
     .col {
         border-left: 1px solid var(--adm-border);
         position: relative;
@@ -328,6 +369,23 @@
         padding: 0.25rem 0.5rem;
         position: absolute;
         right: 0;
+    }
+    /* A hold: time kept free for someone not confirmed yet. */
+    .blocked.hold {
+        background: var(--adm-selected-bg);
+        border: 1.5px dashed var(--adm-accent-line);
+    }
+    .fam {
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin-left: 0.375rem;
+        opacity: 0.8;
+        padding: 0 0.375rem;
+        text-transform: uppercase;
+        vertical-align: 0.0625rem;
     }
     .blocked-label {
         display: flex;
@@ -449,6 +507,10 @@
         font-size: 0.75rem;
         font-variant-numeric: tabular-nums;
         font-weight: 600;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .n {
         font-size: 0.875rem;
@@ -474,9 +536,12 @@
         padding-block: 0;
         white-space: nowrap;
     }
-    .block.short .t,
-    .block.short .n {
+    .block.short .t {
         flex: none;
+    }
+    .block.short .n {
+        flex: 0 1 auto;
+        min-width: 0;
     }
     .block.short .s {
         flex: 1;
@@ -488,8 +553,23 @@
         gap: 0;
         justify-content: center;
     }
+    /* A visit in someone's waiting time on a phone: time, then name. */
+    .block.stack,
+    .block.stack.short {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0;
+        justify-content: flex-start;
+        padding: 0.125rem 0.375rem;
+    }
+    .block.stack .n {
+        max-width: 100%;
+    }
     .compact .block {
         padding: 0.1875rem 0.375rem;
+    }
+    .compact .block .s {
+        font-size: 0.6875rem;
     }
     .compact .n {
         font-size: 0.8125rem;

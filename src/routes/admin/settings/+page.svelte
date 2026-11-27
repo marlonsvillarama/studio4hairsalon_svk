@@ -28,7 +28,9 @@
         settings = s.data;
         business = b.data;
         gstText = showGst(b.data?.gst_number);
-        hours = h.data.map(d => ({
+        // Shown Monday first; weekday stays 0 = Sunday in the data.
+        const mondayFirst = (w) => (w + 6) % 7;
+        hours = h.data.toSorted((a, z) => mondayFirst(a.weekday) - mondayFirst(z.weekday)).map(d => ({
             ...d,
             opens_at: d.opens_at?.slice(0, 5) ?? '09:30',
             closes_at: d.closes_at?.slice(0, 5) ?? '17:00'
@@ -172,10 +174,22 @@
         margin-bottom: 1.5rem;
     }
     .layout {
-        display: flex;
-        flex-direction: column;
+        display: grid;
         gap: 1.25rem;
+        grid-template-columns: minmax(0, 1fr);
         max-width: 44rem;
+    }
+    /* Wide screens: Online booking and Opening hours side by side,
+       business details and Save across the full width under them. */
+    @media (min-width: 72rem) {
+        .layout {
+            align-items: start;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            max-width: 76rem;
+        }
+        .layout > :nth-child(n + 3) {
+            grid-column: 1 / -1;
+        }
     }
     .panel h2 {
         margin-bottom: 0.75rem;

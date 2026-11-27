@@ -1,12 +1,22 @@
 <script>
-    import { onMount } from 'svelte';
+    import { untrack } from 'svelte';
+    import { page } from '$app/state';
+    import { goto } from '$app/navigation';
     import { getSupabase } from '$lib/supabase';
-    import { adminError, slugify, removedSlug, restoredSlug } from '$lib/admin';
+    import { adminError, slugify, removedSlug, restoredSlug, pageRange, urlPage, urlSize, savePageSize } from '$lib/admin';
+    import Pager from '$lib/components/admin/pager.svelte';
+    import Skeleton from '$lib/components/admin/skeleton.svelte';
     import Modal from '$lib/components/admin/modal.svelte';
     import Switch from '$lib/components/admin/switch.svelte';
 
     const sb = getSupabase();
-    let categories = $state([]);
+    const TABLE = 'categories';
+    let current = $state([]);           // this page of categories in use
+    let currentTotal = $state(0);
+    let removed = $state([]);           // this page of removed ones
+    let removedTotal = $state(0);
+    let removedPage = $state(1);
+    let busy = $state(false);
     let loading = $state(true);
     let loadError = $state('');
     let rowError = $state({});      // { [id]: message } for quick actions in the table
@@ -28,24 +38,57 @@
         return { id: null, name: '', description: '', is_active: true };
     }
 
-    async function load() {
-        loading = true;
-        const { data, error } = await sb.from('s4_categories')
-            .select('id, slug, name, description, sort_order, is_active, deleted_at, services:s4_services(id, deleted_at)')
-            .order('sort_order').order('id');
-        loading = false;
-        if (error) { loadError = adminError(error); return; }
-        categories = data.map(c => ({
-            ...c,
-            description: c.description ?? '',
-            serviceCount: c.services.filter(s => !s.deleted_at).length,
-            anyServices: c.services.length > 0
-        }));
+    // Page and size of the main table live in the URL (?page=2&size=10).
+    let pageNo = $derived(urlPage(page.url));
+    let size = $derived(urlSize(page.url, TABLE));
+    function setParams(changes) {
+        const params = new URLSearchParams(page.url.searchParams);
+        for (const [k, v] of Object.entries(changes)) {
+            if (v == null || (k === 'page' && v === 1)) params.delete(k); else params.set(k, String(v));
+        }
+        const qs = params.toString();
+        goto(qs ? `?${qs}` : page.url.pathname, { replaceState: true, keepFocus: true, noScroll: true });
     }
-    onMount(load);
+    const goPage = (n) => setParams({ page: n });
+    function setSize(n) {
+        savePageSize(TABLE, n);
+        removedPage = 1;
+        setParams({ size: n, page: Math.floor(((pageNo - 1) * size) / n) + 1 });
+    }
 
-    let current = $derived(categories.filter(c => !c.deleted_at));
-    let removed = $derived(categories.filter(c => c.deleted_at));
+    const COLS = 'id, slug, name, description, sort_order, is_active, deleted_at, services:s4_services(id, deleted_at)';
+    const shape = (c) => ({
+        ...c,
+        description: c.description ?? '',
+        serviceCount: c.services.filter(s => !s.deleted_at).length,
+        anyServices: c.services.length > 0
+    });
+    let seq = 0;
+    async function load() {
+        const mine = ++seq;
+        busy = true;
+        const [from, to] = pageRange(pageNo, size);
+        const [rf, rt] = pageRange(removedPage, size);
+        const [cur, rem] = await Promise.all([
+            sb.from('s4_categories').select(COLS, { count: 'exact' }).is('deleted_at', null)
+                .order('sort_order').order('id').range(from, to),
+            sb.from('s4_categories').select(COLS, { count: 'exact' }).not('deleted_at', 'is', null)
+                .order('name').order('id').range(rf, rt)
+        ]);
+        if (mine !== seq) return;
+        loading = busy = false;
+        const error = (cur.error?.code === 'PGRST103' ? null : cur.error) || (rem.error?.code === 'PGRST103' ? null : rem.error);
+        if (error) { loadError = adminError(error); return; }
+        if (cur.error && pageNo > 1) { goPage(1); return; }
+        if (rem.error && removedPage > 1) { removedPage = 1; load(); return; }
+        loadError = '';
+        current = cur.data.map(shape);
+        currentTotal = cur.count ?? 0;
+        removed = rem.data.map(shape);
+        removedTotal = rem.count ?? 0;
+    }
+    $effect(() => { pageNo; size; untrack(load); });
+    const goRemovedPage = (n) => { removedPage = n; load(); };
 
     function announce(kind, text) {
         status = { kind, text };
@@ -75,7 +118,9 @@
         if (form.id) {
             ({ error } = await sb.from('s4_categories').update(fields).eq('id', form.id));
         } else {
-            const last = Math.max(0, ...categories.map(c => c.sort_order ?? 0));
+            // Add at the end: after the highest position in the database, not just this page.
+            const { data: top } = await sb.from('s4_categories').select('sort_order').order('sort_order', { ascending: false }).limit(1);
+            const last = top?.[0]?.sort_order ?? 0;
             ({ error } = await sb.from('s4_categories').insert({ ...fields, sort_order: last + 1 }));
         }
         saving = false;
@@ -97,19 +142,28 @@
         }
     }
 
-    // Swap display order with the neighbour above/below.
+    // Swap display order with the neighbour above/below. The neighbour comes
+    // from the database, so a move works across page boundaries too.
     async function move(c, dir) {
-        const list = current;
-        const i = list.indexOf(c);
-        const other = list[i + dir];
-        if (!other) return;
         busyId = c.id;
-        const a = c.sort_order, b = other.sort_order === a ? a + dir : other.sort_order;
+        const a = c.sort_order;
+        const near = dir < 0
+            ? `sort_order.lt.${a},and(sort_order.eq.${a},id.lt.${c.id})`
+            : `sort_order.gt.${a},and(sort_order.eq.${a},id.gt.${c.id})`;
+        const { data: found, error: e0 } = await sb.from('s4_categories').select('id, sort_order')
+            .is('deleted_at', null).or(near)
+            .order('sort_order', { ascending: dir > 0 }).order('id', { ascending: dir > 0 }).limit(1);
+        const other = found?.[0];
+        if (e0 || !other) { busyId = null; if (e0) rowError = { ...rowError, [c.id]: adminError(e0) }; return; }
+        const b = other.sort_order === a ? a + dir : other.sort_order;
         const r1 = await sb.from('s4_categories').update({ sort_order: b }).eq('id', c.id);
         const r2 = await sb.from('s4_categories').update({ sort_order: a }).eq('id', other.id);
         busyId = null;
         if (r1.error || r2.error) { rowError = { ...rowError, [c.id]: adminError(r1.error || r2.error) }; return; }
-        await load();
+        // Follow the category if it moved onto the next or previous page.
+        const index = (pageNo - 1) * size + current.findIndex(x => x.id === c.id) + dir;
+        const target = Math.floor(index / size) + 1;
+        if (target !== pageNo) goPage(target); else await load();
     }
 
     function askRemove(c) {
@@ -149,10 +203,9 @@
     }
 </script>
 
-<div class="page-head">
+<div class="page-head capped">
     <div>
         <h1>Categories</h1>
-        <p>The tabs clients choose from when booking. Turning a category off hides it and all its services from clients; existing appointments are never affected.</p>
     </div>
     <button type="button" class="primary with-icon" onclick={openAdd}>
         <i class="ph ph-plus" aria-hidden="true"></i> Add category
@@ -165,18 +218,18 @@
     </p>
 {/if}
 
-{#if loading && !categories.length}
-    <p class="muted" role="status">Loading…</p>
+{#if loading && !current.length}
+    <div class="capped"><Skeleton rows={6} columns={3} label="Loading categories…" /></div>
 {:else if loadError}
     <p class="error">{loadError}</p>
 {:else}
-    <table class="admin-table">
+    <div class="capped">
+    <table class="admin-table" class:busy aria-busy={busy}>
         <caption class="sr-only">Categories, in the order clients see them</caption>
         <thead>
             <tr>
                 <th scope="col" class="order-col">Order</th>
                 <th scope="col">Category</th>
-                <th scope="col" class="num">Services</th>
                 <th scope="col">Bookable</th>
                 <th scope="col" class="actions-cell"><span class="sr-only">Actions</span></th>
             </tr>
@@ -185,50 +238,49 @@
             {#each current as c, i (c.id)}
                 <tr class:off={!c.is_active}>
                     <td class="lead-cell order">
-                        <button type="button" class="icon-btn" aria-label="Move {c.name} up"
-                            disabled={i === 0 || busyId === c.id} onclick={() => move(c, -1)}>
+                        <button type="button" class="icon-btn" aria-label="Move {c.name} up" title="Move up"
+                            disabled={(pageNo === 1 && i === 0) || busyId === c.id} onclick={() => move(c, -1)}>
                             <i class="ph ph-caret-up" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="icon-btn" aria-label="Move {c.name} down"
-                            disabled={i === current.length - 1 || busyId === c.id} onclick={() => move(c, 1)}>
+                        <button type="button" class="icon-btn" aria-label="Move {c.name} down" title="Move down"
+                            disabled={(pageNo - 1) * size + i === currentTotal - 1 || busyId === c.id} onclick={() => move(c, 1)}>
                             <i class="ph ph-caret-down" aria-hidden="true"></i>
                         </button>
                     </td>
                     <td class="primary-cell">
                         <strong>{c.name}</strong>
+                        <span class="dot-sep" aria-hidden="true">·</span>
+                        <a class="count-link" href="/admin/services?category={c.id}">{c.serviceCount} {c.serviceCount === 1 ? 'service' : 'services'}<span class="sr-only"> in {c.name}</span></a>
                         {#if !c.is_active}<span class="badge warn">Off</span>{/if}
                         {#if c.description}<span class="sub">{c.description}</span>{/if}
                         {#if rowError[c.id]}<span class="error sub" role="alert">{rowError[c.id]}</span>{/if}
-                    </td>
-                    <td class="num" data-label="Services">
-                        <a class="count-link" href="/admin/services?category={c.id}" aria-label="{c.serviceCount} services in {c.name}">
-                            {c.serviceCount}
-                        </a>
                     </td>
                     <td data-label="Bookable">
                         <Switch bind:checked={c.is_active} label="{c.name} bookable" disabled={busyId === c.id}
                             onchange={(v) => toggleActive(c, v)} />
                     </td>
                     <td class="actions-cell">
-                        <button type="button" class="icon-btn" aria-label="Edit {c.name}" onclick={() => openEdit(c)}>
+                        <button type="button" class="icon-btn" aria-label="Edit {c.name}" title="Edit" onclick={() => openEdit(c)}>
                             <i class="ph ph-pencil-simple" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="icon-btn danger-icon" aria-label="Remove {c.name}" onclick={() => askRemove(c)}>
+                        <button type="button" class="icon-btn danger-icon" aria-label="Remove {c.name}" title="Remove" onclick={() => askRemove(c)}>
                             <i class="ph ph-trash" aria-hidden="true"></i>
                         </button>
                     </td>
                 </tr>
             {:else}
-                <tr><td colspan="5" class="muted">No categories yet. Add one to get started.</td></tr>
+                <tr><td colspan="4" class="muted">No categories yet. Add one to get started.</td></tr>
             {/each}
         </tbody>
     </table>
+    <Pager page={pageNo} {size} total={currentTotal} label="categories" onpage={goPage} onsize={setSize} />
+    </div>
 
-    {#if removed.length}
+    {#if removedTotal}
         <section class="removed">
             <button type="button" class="toggle" aria-expanded={showRemoved} onclick={() => showRemoved = !showRemoved}>
                 <i class="ph ph-caret-{showRemoved ? 'down' : 'right'}" aria-hidden="true"></i>
-                Removed categories ({removed.length})
+                Removed categories ({removedTotal})
             </button>
             {#if showRemoved}
                 <table class="admin-table">
@@ -236,15 +288,13 @@
                     <thead>
                         <tr>
                             <th scope="col">Category</th>
-                            <th scope="col" class="num">Services</th>
                             <th scope="col" class="actions-cell"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>
                         {#each removed as c (c.id)}
                             <tr>
-                                <td class="primary-cell"><strong>{c.name}</strong><span class="sub">Kept for existing bookings</span></td>
-                                <td class="num" data-label="Services">{c.serviceCount}</td>
+                                <td class="primary-cell"><strong>{c.name}</strong> <span class="muted">· {c.serviceCount} {c.serviceCount === 1 ? 'service' : 'services'}</span><span class="sub">Kept for existing bookings</span></td>
                                 <td class="actions-cell">
                                     <button type="button" class="secondary with-icon" disabled={busyId === c.id} onclick={() => restore(c)}>
                                         <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Restore
@@ -254,6 +304,9 @@
                         {/each}
                     </tbody>
                 </table>
+                {#if removedTotal > size}
+                    <Pager page={removedPage} {size} total={removedTotal} label="removed categories" onpage={goRemovedPage} onsize={setSize} />
+                {/if}
             {/if}
         </section>
     {/if}
@@ -299,6 +352,10 @@
 </Modal>
 
 <style>
+    table.busy {
+        opacity: 0.6;
+        transition: opacity 150ms ease;
+    }
     .order-col {
         width: 1%;
     }
@@ -307,27 +364,31 @@
     }
     .order .icon-btn {
         font-size: 1rem;
-        height: 2.25rem;
-        width: 2.25rem;
     }
     .primary-cell strong {
         color: var(--adm-text);
         margin-right: 0.375rem;
     }
     .count-link {
-        border-radius: 0.25rem;
-        color: var(--adm-text);
+        color: var(--adm-text-muted);
         display: inline-block;
-        font-weight: 600;
-        min-width: 2.75rem;
-        padding: 0.5rem;
-        text-align: center;
+        font-weight: 500;
+        margin-right: 0.375rem;
+        padding-block: 0.6875rem;
         text-decoration: underline;
         text-decoration-color: var(--adm-accent-line);
         text-underline-offset: 3px;
     }
     .removed {
         margin-top: 2rem;
+        max-width: 56rem;
+    }
+    .capped {
+        max-width: 56rem;
+    }
+    .dot-sep {
+        color: var(--adm-text-muted);
+        margin-right: 0.25rem;
     }
     .toggle {
         align-items: center;

@@ -6,6 +6,7 @@
     import { formatDuration } from '$lib/data/services';
     import Modal from '$lib/components/admin/modal.svelte';
     import Switch from '$lib/components/admin/switch.svelte';
+    import Skeleton from '$lib/components/admin/skeleton.svelte';
 
     const sb = getSupabase();
     let categories = $state([]);
@@ -208,10 +209,11 @@
     }
 </script>
 
+<svelte:head><title>Services · Studio 4 admin</title></svelte:head>
+
 <div class="page-head">
     <div>
-        <h1>Services & prices</h1>
-        <p>New and changed prices apply to online bookings straight away; the home page updates on the next site deploy. Existing bookings keep the price they were booked at.</p>
+        <h1>Services</h1>
     </div>
     <button type="button" class="primary with-icon" onclick={() => openAdd()}>
         <i class="ph ph-plus" aria-hidden="true"></i> Add service
@@ -241,7 +243,7 @@
 {/if}
 
 {#if loading && !rows.length}
-    <p class="muted" role="status">Loading…</p>
+    <Skeleton rows={8} columns={5} label="Loading services…" />
 {:else if error}
     <p class="error">{error}</p>
 {:else if !groups.length}
@@ -296,10 +298,10 @@
                                 onchange={(v) => toggleActive(r, v)} />
                         </td>
                         <td class="actions-cell">
-                            <button type="button" class="icon-btn" aria-label="Edit {r.name}" onclick={() => openEdit(r)}>
+                            <button type="button" class="icon-btn" aria-label="Edit {r.name}" title="Edit" onclick={() => openEdit(r)}>
                                 <i class="ph ph-pencil-simple" aria-hidden="true"></i>
                             </button>
-                            <button type="button" class="icon-btn danger-icon" aria-label="Remove {r.name}" onclick={() => askRemove(r)}>
+                            <button type="button" class="icon-btn danger-icon" aria-label="Remove {r.name}" title="Remove" onclick={() => askRemove(r)}>
                                 <i class="ph ph-trash" aria-hidden="true"></i>
                             </button>
                         </td>

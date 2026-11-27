@@ -6,6 +6,7 @@
     import { SALON_TZ, salonDay, salonTime, showShortDay, showTime, adminError, addDays } from '$lib/admin';
     import Modal from '$lib/components/admin/modal.svelte';
     import Switch from '$lib/components/admin/switch.svelte';
+    import Skeleton from '$lib/components/admin/skeleton.svelte';
 
     const sb = getSupabase();
     let items = $state([]);
@@ -31,13 +32,13 @@
 
     function blankForm() {
         const today = salonDay(Date.now());
-        return { id: null, allDay: true, fromDate: today, toDate: today, fromTime: '12:00', toTime: '13:00', reason: '' };
+        return { id: null, allDay: true, fromDate: today, toDate: today, fromTime: '12:00', toTime: '13:00', reason: '', kind: 'time_off' };
     }
 
     async function load() {
         loading = true;
         const { data, error: e } = await sb.from('s4_time_off')
-            .select('id, starts_at, ends_at, reason')
+            .select('id, starts_at, ends_at, reason, kind')
             .gte('ends_at', new Date().toISOString())
             .order('starts_at');
         loading = false;
@@ -49,7 +50,7 @@
     async function loadPast() {
         const yearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString();
         const { data, error: e } = await sb.from('s4_time_off')
-            .select('id, starts_at, ends_at, reason')
+            .select('id, starts_at, ends_at, reason, kind')
             .lt('ends_at', new Date().toISOString())
             .gte('ends_at', yearAgo)
             .order('starts_at', { ascending: false });
@@ -101,7 +102,8 @@
             toDate: allDay ? salonDay(lastMoment(t)) : salonDay(t.starts_at),
             fromTime: allDay ? '12:00' : salonTime(t.starts_at),
             toTime: allDay ? '13:00' : salonTime(t.ends_at),
-            reason: t.reason ?? ''
+            reason: t.reason ?? '',
+            kind: t.kind ?? 'time_off'
         };
         formError = '';
         formOpen = true;
@@ -116,8 +118,9 @@
         const start = f.allDay ? salonInstant(f.fromDate, '00:00', SALON_TZ) : salonInstant(f.fromDate, f.fromTime, SALON_TZ);
         const end = f.allDay ? salonInstant(addDays(f.toDate || f.fromDate, 1), '00:00', SALON_TZ) : salonInstant(f.fromDate, f.toTime, SALON_TZ);
         if (end <= start) { formError = 'The end must be after the start.'; return; }
+        if (f.kind === 'hold' && !f.reason.trim()) { formError = 'Say who the hold is for, e.g. "Family, maybe 3 people".'; return; }
         saving = true;
-        const fields = { starts_at: start.toISOString(), ends_at: end.toISOString(), reason: f.reason.trim() || null };
+        const fields = { starts_at: start.toISOString(), ends_at: end.toISOString(), reason: f.reason.trim() || null, kind: f.kind };
         let err;
         if (f.id) {
             ({ error: err } = await sb.from('s4_time_off').update(fields).eq('id', f.id));
@@ -128,7 +131,7 @@
         saving = false;
         if (err) { formError = adminError(err); return; }
         formOpen = false;
-        announce('ok', f.id ? 'Saved. The booking calendar uses the new times.' : 'Added. Those times are no longer bookable online.');
+        announce('ok', f.id ? 'Saved. The booking calendar uses the new times.' : f.kind === 'hold' ? 'Hold added. Those times are kept free until you book or release them.' : 'Added. Those times are no longer bookable online.');
         load();
         if (pastLoaded) loadPast();
     }
@@ -153,7 +156,6 @@
 <div class="page-head">
     <div>
         <h1>Time off</h1>
-        <p>Days off, holidays and breaks. Online booking won't offer these times. Existing bookings aren't changed.</p>
     </div>
     <button type="button" class="primary with-icon" onclick={openAdd}>
         <i class="ph ph-plus" aria-hidden="true"></i> Add time off
@@ -177,14 +179,14 @@
             {#if isAllDay(t)}<span class="badge">All day</span>{:else}<span class="time">{timeText(t)}</span>{/if}
         </td>
         <td class="num" data-label="Length">{lengthText(t)}</td>
-        <td data-label="Reason">{#if t.reason}{t.reason}{:else}<span class="muted">—</span>{/if}</td>
+        <td data-label="Reason">{#if t.kind === 'hold'}<span class="badge hold">Hold</span> {/if}{#if t.reason}{t.reason}{:else}<span class="muted">—</span>{/if}</td>
         <td class="actions-cell">
             {#if editable}
-                <button type="button" class="icon-btn" aria-label="Edit time off on {describe(t)}" onclick={() => openEdit(t)}>
+                <button type="button" class="icon-btn" aria-label="Edit time off on {describe(t)}" title="Edit" onclick={() => openEdit(t)}>
                     <i class="ph ph-pencil-simple" aria-hidden="true"></i>
                 </button>
             {/if}
-            <button type="button" class="icon-btn danger-icon" aria-label="Remove time off on {describe(t)}"
+            <button type="button" class="icon-btn danger-icon" aria-label="Remove time off on {describe(t)}" title="Remove"
                 disabled={busyId === t.id} onclick={() => askRemove(t)}>
                 <i class="ph ph-trash" aria-hidden="true"></i>
             </button>
@@ -193,7 +195,7 @@
 {/snippet}
 
 {#if loading && !items.length}
-    <p class="muted" role="status">Loading…</p>
+    <Skeleton rows={4} columns={5} label="Loading time off…" />
 {:else if loadError}
     <p class="error">{loadError}</p>
 {:else}
@@ -225,7 +227,7 @@
     </button>
     {#if showPast}
         {#if !pastLoaded}
-            <p class="muted" role="status">Loading…</p>
+            <Skeleton rows={3} columns={5} label="Loading past time off…" />
         {:else if !past.length}
             <p class="muted">No time off in the last 12 months.</p>
         {:else}
@@ -251,7 +253,7 @@
 </section>
 
 <!-- Add / Edit -->
-<Modal bind:open={formOpen} title={form.id ? 'Edit time off' : 'Add time off'}>
+<Modal bind:open={formOpen} title={form.id ? (form.kind === 'hold' ? 'Edit hold' : 'Edit time off') : 'Add time off'}>
     <form id="timeoff-form" class="modal-form" onsubmit={submitForm} novalidate>
         <Switch bind:checked={form.allDay} label="Whole day(s)" showLabel />
         {#if form.allDay}
@@ -268,14 +270,14 @@
         {/if}
         <label>
             <span>Reason <span class="optional">(only staff see this)</span></span>
-            <input bind:value={form.reason} placeholder="e.g. Christmas, dentist" autocomplete="off" />
+            <input bind:value={form.reason} placeholder={form.kind === 'hold' ? 'e.g. Family, maybe 3 people' : 'e.g. Christmas, dentist'} autocomplete="off" />
         </label>
         {#if formError}<p class="error" role="alert">{formError}</p>{/if}
     </form>
     {#snippet footer()}
         <button type="button" class="secondary" onclick={() => formOpen = false}>Cancel</button>
         <button type="submit" form="timeoff-form" class="primary" disabled={saving}>
-            {saving ? 'Saving…' : form.id ? 'Save changes' : 'Add time off'}
+            {saving ? 'Saving…' : form.id ? 'Save changes' : form.kind === 'hold' ? 'Add hold' : 'Add time off'}
         </button>
     {/snippet}
 </Modal>
@@ -295,6 +297,9 @@
 </Modal>
 
 <style>
+    .badge.hold {
+        border-style: dashed;
+    }
     .day-link {
         color: var(--adm-text);
         font-weight: 600;

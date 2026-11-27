@@ -71,7 +71,7 @@ const lastOfMonth = (key) => {
  * Everything the calendar needs, loaded once per visit to /book.
  * { timezone, slotStep, onlineBooking,
  *   hours: { [weekday]: { open, close } | null },
- *   busy: { ["YYYY-MM"]: [{ start, end, gaps: [{ start, end }], canNest }] } }   (months are loaded on demand)
+ *   busy: { ["YYYY-MM"]: [{ start, end, gaps: [{ start, end }], kind }] } }   (months are loaded on demand)
  * Online bookings start tomorrow, with no upper limit.
  */
 export async function loadSchedule(now = new Date()) {
@@ -129,7 +129,8 @@ export async function refreshBusy(schedule, months = Object.keys(schedule.busy),
         start: new Date(b.busy_start).getTime(),
         end: new Date(b.busy_end).getTime(),
         gaps: (b.gaps || []).map(g => ({ start: new Date(g.start).getTime(), end: new Date(g.end).getTime() })),
-        canNest: !!b.can_nest
+        canNest: !!b.can_nest,
+        kind: b.kind ?? (b.can_nest ? 'booking' : 'time_off')
     }));
     for (const k of keys) schedule.busy[k] = intervals;
     return schedule;
@@ -163,22 +164,45 @@ export function getOpenDays(schedule, key, now = new Date()) {
     return days;
 }
 
-const within = (inner, gaps) => gaps.some(g => g.start <= inner.start && g.end >= inner.end);
+/** Hands-on time: the span [start, end) minus its waiting periods, as [{ start, end }]. */
+function handsOn(x) {
+    const out = [];
+    let at = x.start;
+    for (const g of (x.gaps ?? []).toSorted((a, z) => a.start - z.start)) {
+        if (g.start > at) out.push({ start: at, end: Math.min(g.start, x.end) });
+        at = Math.max(at, g.end);
+    }
+    if (at < x.end) out.push({ start: at, end: x.end });
+    return out;
+}
+const meets = (a, z) => a.start < z.end && z.start < a.end;
 
 /**
- * Whether a visit clashes with what's booked. Visits may overlap only when one
- * sits wholly inside a waiting period of the other, one level deep. Mirrors
- * s4_bookings_check_overlap in the database, which has the final say.
+ * Whether a visit clashes with what's booked. Bookings may overlap as long as
+ * John's hands-on time never does (each is worked on during the other's
+ * waiting time), with at most two clients in at once; time off blocks any
+ * overlap. Mirrors s4_bookings_check_overlap in the database, which has the
+ * final say. Closed waiting time arrives without its gaps, so it counts as busy.
  */
 export function clashes(visit, busy) {
-    let inside = 0, around = 0;
+    const mine = handsOn(visit);
+    const others = [];
     for (const b of busy) {
-        if (b.start >= visit.end || b.end <= visit.start) continue;
-        if (within(visit, b.gaps)) inside += 1;
-        else if (b.canNest && within(b, visit.gaps)) around += 1;
-        else return true;
+        if (!meets(b, visit)) continue;
+        if (b.kind === 'time_off') return true;
+        const theirs = handsOn(b);
+        if (mine.some(m => theirs.some(t => meets(m, t)))) return true;
+        others.push(b);
     }
-    return inside > 1 || (inside > 0 && around > 0);
+    // Two others already overlapping each other during this visit → three at once.
+    for (let i = 0; i < others.length; i++) {
+        for (let j = i + 1; j < others.length; j++) {
+            const start = Math.max(visit.start, others[i].start, others[j].start);
+            const end = Math.min(visit.end, others[i].end, others[j].end);
+            if (start < end) return true;
+        }
+    }
+    return false;
 }
 
 /**

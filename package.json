@@ -22,6 +22,7 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
-		"@supabase/supabase-js": "^2.119.0"
+		"@supabase/supabase-js": "^2.119.0",
+		"libphonenumber-js": "1.13.16"
 	}
 }

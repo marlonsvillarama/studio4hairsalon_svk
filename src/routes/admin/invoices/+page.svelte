@@ -1,51 +1,101 @@
 <script>
-    import { onMount } from 'svelte';
+    import { onMount, untrack } from 'svelte';
+    import { page } from '$app/state';
+    import { goto } from '$app/navigation';
     import { getSupabase } from '$lib/supabase';
-    import { adminError, showShortDay } from '$lib/admin';
-    import { invoiceNumber, money, showIssueDate, loadBusiness, businessReady, INVOICE_STATUS } from '$lib/invoices';
+    import { adminError, showShortDay, pageRange, urlPage, urlSize, savePageSize, likeText } from '$lib/admin';
+    import { money, showIssueDate, loadBusiness, businessReady, INVOICE_STATUS } from '$lib/invoices';
     import InvoiceEditor from '$lib/components/admin/invoice-editor.svelte';
+    import Pager from '$lib/components/admin/pager.svelte';
+    import Skeleton from '$lib/components/admin/skeleton.svelte';
 
     const sb = getSupabase();
-    let invoices = $state([]);
+    const TABLE = 'invoices';
+    let invoices = $state([]);          // this page only
+    let total = $state(0);
     let business = $state(null);
     let loading = $state(true);
+    let busy = $state(false);
     let loadError = $state('');
-    let filter = $state('all');
-    let search = $state('');
 
     let editorOpen = $state(false);
     let editingId = $state(null);
 
     const FILTERS = [['all', 'All'], ['draft', 'Drafts'], ['issued', 'Issued'], ['void', 'Void']];
 
-    async function load() {
-        const { data, error } = await sb.from('s4_invoices')
-            .select('id, number, status, issue_date, client_name, total_cents, gst_cents, created_at, booking:s4_bookings(reference, starts_at, client:s4_clients(first_name, last_name))')
-            .order('created_at', { ascending: false })
-            .limit(500);
-        loading = false;
-        if (error) { loadError = adminError(error); return; }
-        invoices = data;
+    // ─── page, size, tab and search live in the URL ─────────────────────
+    let pageNo = $derived(urlPage(page.url));
+    let size = $derived(urlSize(page.url, TABLE));
+    let filter = $derived(FILTERS.some(([id]) => id === page.url.searchParams.get('show')) ? page.url.searchParams.get('show') : 'all');
+    let q = $derived((page.url.searchParams.get('q') ?? '').trim());
+
+    function setParams(changes) {
+        const params = new URLSearchParams(page.url.searchParams);
+        for (const [k, v] of Object.entries(changes)) {
+            if (v == null || v === '' || (k === 'page' && v === 1) || (k === 'show' && v === 'all')) params.delete(k);
+            else params.set(k, String(v));
+        }
+        const qs = params.toString();
+        goto(qs ? `?${qs}` : page.url.pathname, { replaceState: true, keepFocus: true, noScroll: true });
     }
+    const goPage = (n) => setParams({ page: n });
+    function setSize(n) {
+        savePageSize(TABLE, n);
+        setParams({ size: n, page: Math.floor(((pageNo - 1) * size) / n) + 1 });
+    }
+    let search = $state(untrack(() => q));
+    let searchTimer;
+    function onSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => setParams({ q: search.trim(), page: 1 }), 250);
+    }
+
+    // Search: number ("INV-0012" or "12"), client name or booking reference.
+    function searched(query) {
+        if (!q) return query;
+        const t = likeText(q);
+        const parts = [`number_text.ilike.%${t}%`, `display_name.ilike.%${t}%`, `booking_reference.ilike.%${t}%`];
+        return query.or(parts.join(','));
+    }
+
+    // ─── load just this page, and the count for each tab ────────────────
+    let counts = $state({ all: 0, draft: 0, issued: 0, void: 0 });
+    let seq = 0;
+    async function load() {
+        const mine = ++seq;
+        busy = true;
+        const [from, to] = pageRange(pageNo, size);
+        let query = searched(sb.from('s4_invoice_list')
+            .select('id, number, status, issue_date, total_cents, gst_cents, created_at, number_text, display_name, booking_reference, visit_at', { count: 'exact' }));
+        if (filter !== 'all') query = query.eq('status', filter);
+        const countOf = (status) => {
+            let c = searched(sb.from('s4_invoice_list').select('id', { count: 'exact', head: true }));
+            return status === 'all' ? c : c.eq('status', status);
+        };
+        const [list, ...tabCounts] = await Promise.all([
+            query.order('created_at', { ascending: false }).order('id').range(from, to),
+            ...FILTERS.map(([id]) => countOf(id))
+        ]);
+        if (mine !== seq) return;
+        loading = busy = false;
+        if (list.error) {
+            if (list.error.code === 'PGRST103' && pageNo > 1) { goPage(1); return; }
+            loadError = adminError(list.error);
+            return;
+        }
+        loadError = '';
+        invoices = list.data;
+        total = list.count ?? 0;
+        counts = Object.fromEntries(FILTERS.map(([id], i) => [id, tabCounts[i].count ?? 0]));
+        if (pageNo > Math.max(1, Math.ceil(total / size))) goPage(Math.max(1, Math.ceil(total / size)));
+    }
+    $effect(() => {
+        pageNo; size; filter; q;
+        untrack(load);
+    });
     onMount(async () => {
-        load();
         try { business = await loadBusiness(); } catch { /* the banner just won't show */ }
     });
-
-    const nameOf = (i) => i.client_name
-        || `${i.booking?.client?.first_name ?? ''} ${i.booking?.client?.last_name ?? ''}`.trim()
-        || 'Client';
-
-    let shown = $derived.by(() => {
-        const q = search.trim().toLowerCase();
-        return invoices.filter(i =>
-            (filter === 'all' || i.status === filter) &&
-            (!q || nameOf(i).toLowerCase().includes(q)
-                || invoiceNumber(i.number).toLowerCase().includes(q)
-                || (i.booking?.reference ?? '').toLowerCase().includes(q)));
-    });
-    const counts = $derived(Object.fromEntries(FILTERS.map(([id]) =>
-        [id, id === 'all' ? invoices.length : invoices.filter(i => i.status === id).length])));
 
     function openInvoice(id) {
         editingId = id;
@@ -56,7 +106,6 @@
 <div class="page-head">
     <div>
         <h1>Tax invoices</h1>
-        <p>Make an invoice from a completed booking: open it in Bookings and choose “Create tax invoice”.</p>
     </div>
 </div>
 
@@ -68,7 +117,7 @@
 <div class="toolbar">
     <div class="views" role="radiogroup" aria-label="Show">
         {#each FILTERS as [id, label]}
-            <button type="button" role="radio" aria-checked={filter === id} onclick={() => filter = id}>
+            <button type="button" role="radio" aria-checked={filter === id} onclick={() => setParams({ show: id, page: 1 })}>
                 {label} <span class="n">{counts[id]}</span>
             </button>
         {/each}
@@ -76,16 +125,16 @@
     <label class="search">
         <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
         <span class="sr-only">Search invoices</span>
-        <input type="search" placeholder="Client, invoice or booking number" bind:value={search} />
+        <input type="search" placeholder="Client, invoice or booking number" bind:value={search} oninput={onSearch} />
     </label>
 </div>
 
 {#if loading}
-    <p class="muted" role="status">Loading…</p>
+    <Skeleton rows={8} columns={6} label="Loading invoices…" />
 {:else if loadError}
     <p class="error">{loadError}</p>
 {:else}
-    <table class="admin-table">
+    <table class="admin-table" class:busy aria-busy={busy}>
         <caption class="sr-only">Tax invoices, newest first</caption>
         <thead>
             <tr>
@@ -98,32 +147,37 @@
             </tr>
         </thead>
         <tbody>
-            {#each shown as i (i.id)}
+            {#each invoices as i (i.id)}
                 <tr class:off={i.status === 'void'}>
                     <td class="primary-cell">
                         <button type="button" class="row-link" onclick={() => openInvoice(i.id)}
-                            aria-label="Open {invoiceNumber(i.number)} for {nameOf(i)}">
-                            <strong>{invoiceNumber(i.number)}</strong>
+                            aria-label="Open {i.number_text} for {i.display_name}">
+                            <strong>{i.number_text}</strong>
                         </button>
                     </td>
-                    <td data-label="Date">{i.issue_date ? showIssueDate(i.issue_date) : `Visit ${showShortDay(i.booking?.starts_at)}`}</td>
-                    <td data-label="Client">{nameOf(i)}</td>
+                    <td data-label="Date">{i.issue_date ? showIssueDate(i.issue_date) : (i.visit_at ? `Visit ${showShortDay(i.visit_at)}` : '—')}</td>
+                    <td data-label="Client">{i.display_name}</td>
                     <td class="num" data-label="Total">{money(i.total_cents)}</td>
                     <td class="num" data-label="GST">{money(i.gst_cents)}</td>
                     <td data-label="Status"><span class="badge s-{i.status}">{INVOICE_STATUS[i.status]}</span></td>
                 </tr>
             {:else}
                 <tr><td colspan="6" class="muted empty">
-                    {invoices.length ? 'No invoices match.' : 'No invoices yet. Mark a booking completed, then create its tax invoice.'}
+                    {q || filter !== 'all' ? 'No invoices match.' : 'No invoices yet. Mark a booking completed, then create its tax invoice.'}
                 </td></tr>
             {/each}
         </tbody>
     </table>
+    <Pager page={pageNo} {size} {total} label="invoices" onpage={goPage} onsize={setSize} />
 {/if}
 
 <InvoiceEditor bind:open={editorOpen} invoiceId={editingId} onchanged={load} />
 
 <style>
+    table.busy {
+        opacity: 0.6;
+        transition: opacity 150ms ease;
+    }
     .toolbar {
         align-items: center;
         display: flex;
@@ -143,7 +197,7 @@
         color: var(--adm-text-muted);
         cursor: pointer;
         font-weight: 600;
-        min-height: 2.375rem;
+        min-height: 2.75rem;
         padding: 0 0.875rem;
     }
     .views button[aria-checked="true"] {

@@ -13,7 +13,8 @@
             if (!map.has(key)) map.set(key, []);
             map.get(key).push(b);
         }
-        for (const list of map.values()) list.sort((a, z) => a.starts_at.localeCompare(z.starts_at));
+        // Active bookings first (by time), cancelled and no-shows after them.
+        for (const list of map.values()) list.sort((a, z) => (isInactive(a) - isInactive(z)) || a.starts_at.localeCompare(z.starts_at));
         return map;
     });
 
@@ -26,6 +27,7 @@
 
     const inMonth = (iso) => iso.slice(0, 7) === month.slice(0, 7);
     const dayNum = (iso) => Number(iso.slice(8));
+    const nameOf = (b) => `${b.client?.first_name ?? ''} ${b.client?.last_name ?? ''}`.trim() || 'Client';
     const label = (iso) => new Intl.DateTimeFormat('en-NZ', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' })
         .format(new Date(`${iso}T00:00:00Z`));
 </script>
@@ -44,19 +46,19 @@
             <span class="top">
                 <span class="num">{dayNum(iso)}</span>
                 {#if o.fullDay || o.blocks.length}<i class="ph ph-prohibit off-icon" aria-hidden="true"></i>{/if}
-                {#if active.length}<span class="count">{active.length}</span>{/if}
+                {#if active.length}<span class="count" aria-hidden="true">{active.length}</span>{/if}
             </span>
             <span class="list" aria-hidden="true">
                 {#if o.fullDay}
                     <span class="off-line"><strong>Day off</strong>{#if o.reason}{' · '}{o.reason}{/if}</span>
                 {:else}
                     {#each o.blocks as b}
-                        <span class="off-line"><strong>{span(b)}</strong>{' '}Blocked{#if b.reason}{' · '}{b.reason}{/if}</span>
+                        <span class="off-line"><strong>{span(b)}</strong>{' '}{b.hold ? 'Hold' : 'Blocked'}{#if b.reason}{' · '}{b.reason}{/if}</span>
                     {/each}
                 {/if}
                 {#each list.slice(0, 3) as b (b.id)}
                     <span class="item" class:inactive={isInactive(b)}>
-                        <span class="t">{salonTime(b.starts_at)}</span> {b.client?.first_name ?? 'Client'}
+                        <span class="t">{salonTime(b.starts_at)}</span> {nameOf(b)}{#if b.kind === 'staff'}<span class="sr-only"> (friends and family)</span><i class="ph ph-heart fam" aria-hidden="true" title="Friends &amp; family"></i>{/if}
                     </span>
                 {/each}
                 {#if list.length > 3}<span class="more">+{list.length - 3} more</span>{/if}
@@ -66,6 +68,11 @@
 </div>
 
 <style>
+    .fam {
+        font-size: 0.75rem;
+        margin-left: 0.25rem;
+        vertical-align: -0.0625rem;
+    }
     .month {
         background-color: var(--adm-border);
         border: 1px solid var(--adm-border);
@@ -93,6 +100,7 @@
         flex-direction: column;
         gap: 0.25rem;
         min-height: 7.5rem;
+        min-width: 0;
         padding: 0.375rem 0.5rem 0.5rem;
         text-align: left;
         transition: background-color 150ms ease;
@@ -103,12 +111,16 @@
     .cell.closed {
         background-color: var(--adm-sunken);
     }
+    /* Days from the months either side: sunken, with muted (still 4.5:1) text. */
     .cell.other {
         background-color: var(--adm-sunken);
-        color: var(--adm-text-subtle);
+        color: var(--adm-text-muted);
+    }
+    .cell.other .num {
+        font-weight: 500;
     }
     .cell.other .item {
-        opacity: 0.6;
+        color: var(--adm-text-muted);
     }
     /* A whole day off: hatched, like blocked time in the day and week views. */
     .cell.dayoff {
@@ -155,16 +167,13 @@
         border-radius: 999px;
         color: var(--adm-inverse-text);
     }
+    /* Phones only, where the names don't fit: a plain count. */
     .count {
-        background-color: var(--adm-primary-bg);
-        border-radius: 999px;
-        color: var(--adm-primary-text);
+        display: none;
+        color: var(--adm-text);
         font-size: 0.75rem;
         font-variant-numeric: tabular-nums;
         font-weight: 700;
-        min-width: 1.5rem;
-        padding: 0.125rem 0.4375rem;
-        text-align: center;
     }
     .list {
         display: flex;
@@ -188,9 +197,14 @@
         font-weight: 600;
     }
     .more {
-        color: var(--adm-text-muted);
+        color: var(--adm-accent-text);
         font-size: 0.75rem;
         font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+    }
+    .cell:hover .more {
+        text-decoration-thickness: 2px;
     }
     @media (max-width: 40rem) {
         .cell {
@@ -200,36 +214,11 @@
         .list {
             display: none;
         }
-        /* A whole day off: hatched, like blocked time in the day and week views. */
-    .cell.dayoff {
-        background: repeating-linear-gradient(135deg, var(--adm-hatch-a) 0 6px, var(--adm-hatch-b) 6px 12px);
-    }
-    .cell.dayoff:hover {
-        background: repeating-linear-gradient(135deg, var(--adm-accent-soft) 0 6px, var(--adm-selected-bg) 6px 12px);
-    }
-    .off-icon {
-        color: var(--adm-text-muted);
-        font-size: 0.9375rem;
-        margin-left: auto;
-        margin-right: 0.25rem;
-    }
-    .off-line {
-        color: var(--adm-text-body);
-        font-size: 0.75rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .dayoff .off-line {
-        background-color: var(--adm-surface);
-        border-radius: 0.25rem;
-        padding: 0 0.25rem;
-    }
-    .off-line strong {
-        font-variant-numeric: tabular-nums;
-        font-weight: 600;
-    }
-    .top {
+        .count {
+            display: block;
+            padding-left: 0.375rem;
+        }
+        .top {
             align-items: flex-start;
             flex-direction: column;
             gap: 0.25rem;

@@ -10,13 +10,18 @@
     import { salonInstant, clashes } from '$lib/data/availability';
     import { loadCatalogue, formatPrice, formatDuration, priceFor } from '$lib/data/services';
     import {
-        SALON_TZ, salonDay, showDay, showPhone, adminError, addDays, weekdayOf, minutesToHHMM, bookingGaps, sitsInside
+        SALON_TZ, salonDay, showDay, showPhone, adminError, addDays, weekdayOf, minutesToHHMM, bookingGaps
     } from '$lib/admin';
     import Modal from './modal.svelte';
     import Switch from './switch.svelte';
+    import PhoneInput from './phone-input.svelte';
+    import { isValidPhone, toE164, fromE164, showInternational, countryName } from '$lib/phone';
 
-    /** day: the day on screen ("YYYY-MM-DD"). hours: { [weekday]: { open, close } | null }. */
-    let { open = $bindable(false), day, hours = {}, oncreated } = $props();
+    /**
+     * day: the day on screen ("YYYY-MM-DD"). hours: { [weekday]: { open, close } | null }.
+     * client: optional s4_clients row to book for (skips to the Service step).
+     */
+    let { open = $bindable(false), day, hours = {}, client: preset = null, oncreated } = $props();
 
     const sb = getSupabase();
     const uid = `nb-${Math.random().toString(36).slice(2, 8)}`;
@@ -28,6 +33,7 @@
     let lastName = $state('');
     let firstName = $state('');
     let phone = $state('');
+    let phoneCountry = $state('NZ');
     let email = $state('');
     let client = $state(null);          // picked existing client, or null for a new one
     let goldCard = $state(false);
@@ -35,6 +41,11 @@
     let date = $state('');
     let time = $state('');
     let notes = $state('');
+    let mode = $state('client');        // 'client' | 'staff' (friends & family, booked by the signed-in staff member)
+    let priceText = $state('');         // friends & family: the price to charge, in dollars ('' = the normal price)
+    let showContact = $state(false);    // friends & family: contact details are optional and folded away
+    let staffName = $state('');         // who's signed in ("Booked by John")
+    let party = $state([]);             // people already added to this booking (a group booked in one go)
     let saving = $state(false);
     let errors = $state({});            // field → message, for the current step
     let stepError = $state('');         // a message for the whole step (e.g. from saving)
@@ -49,22 +60,32 @@
         lastName = firstName = phone = email = notes = time = stepError = '';
         errors = {};
         client = null;
+        phoneCountry = 'NZ';
         goldCard = false;
         chosen = [];
+        mode = 'client';
+        priceText = '';
+        showContact = false;
+        party = [];
         date = day && day >= today ? day : today;
-        matches = [];
-        listOpen = false;
+        lastSearch.clear();
+        firstSearch.clear();
         lastVisit = null;
     }
 
-    let lastEl = $state();
+    let firstEl = $state();
 
     // Load services and the start-time grid the first time the form opens.
     $effect(() => {
         if (!open) return;
-        tick().then(() => lastEl?.focus());
         untrack(() => {
             reset();
+            if (!staffName) {
+                sb.auth.getUser().then(({ data: { user } }) => user && sb.from('s4_staff').select('display_name').eq('user_id', user.id).maybeSingle())
+                    .then((res) => { if (res?.data?.display_name) staffName = res.data.display_name; });
+            }
+            // Booking for a known client (e.g. from Clients): start at Service.
+            if (preset) { pick(preset); showStep(2); } else tick().then(() => firstEl?.focus());
             if (!catalogue) {
                 loadCatalogue().then(c => catalogue = c).catch(e => catalogueError = e.message);
                 sb.from('s4_settings').select('slot_step_min').single().then(({ data }) => { if (data) slotStep = data.slot_step_min; });
@@ -72,72 +93,119 @@
         });
     });
 
-    // ─── step 1: last name autocomplete ─────────────────────────────────
-    let matches = $state([]);
-    let listOpen = $state(false);
-    let active = $state(-1);
-    let searching = $state(false);
-    let searched = $state('');
-    let timer;
-    let seq = 0;
-    const listId = `${uid}-clients`;
-    const optionId = (i) => `${uid}-opt-${i}`;
-
-    function onLastInput() {
-        if (client) unpick();          // typing again means a new (or different) client
-        clearTimeout(timer);
-        const q = lastName.trim();
-        if (q.length < 3) { matches = []; listOpen = false; searched = ''; return; }
-        timer = setTimeout(() => search(q), 200);
+    // ─── step 1: client search on Last name and First name ──────────────
+    // Each name field has its own list; picking from either fills the form.
+    const esc = (q) => q.replace(/[\\%_]/g, '\\$&');
+    class NameSearch {
+        matches = $state([]);
+        open = $state(false);
+        active = $state(-1);
+        searching = $state(false);
+        searched = $state('');
+        timer;
+        seq = 0;
+        constructor(field) {
+            this.field = field;                 // 'last_name' | 'first_name'
+            this.listId = `${uid}-${field}-list`;
+        }
+        optionId = (i) => `${uid}-${this.field}-opt-${i}`;
+        text = () => (this.field === 'last_name' ? lastName : firstName).trim();
+        clear() {
+            clearTimeout(this.timer);
+            this.matches = [];
+            this.open = false;
+            this.searched = '';
+        }
+        input() {
+            if (client) unpick(this.field);     // typing again means a new (or different) client
+            clearTimeout(this.timer);
+            const q = this.text();
+            if (q.length < 3) { this.clear(); return; }
+            this.timer = setTimeout(() => this.search(q), 200);
+        }
+        async search(q) {
+            const mine = ++this.seq;
+            this.searching = true;
+            let query = sb.from('s4_clients')
+                .select('id, first_name, last_name, phone_e164, email, email_verified, has_gold_card, arranged_by, is_family')
+                .ilike(this.field, `${esc(q)}%`);
+            // Friends & family mode only finds friends & family.
+            if (mode === 'staff') query = query.eq('is_family', true);
+            // First name narrows by any last name already typed.
+            const last = lastName.trim();
+            if (this.field === 'first_name' && last) query = query.ilike('last_name', `${esc(last)}%`);
+            const { data, error } = await query.order('last_name').order('first_name').limit(8);
+            if (mine !== this.seq) return;
+            this.searching = false;
+            this.matches = error ? [] : data;
+            this.searched = q;
+            this.active = -1;
+            this.open = this.text() === q;
+        }
+        focus() {
+            if (this.matches.length && !client && this.text() === this.searched) this.open = true;
+        }
+        blur() {
+            setTimeout(() => this.open = false, 150);
+        }
+        keydown(e) {
+            if (e.key === 'Escape' && this.open) { this.open = false; e.preventDefault(); e.stopPropagation(); return; }
+            if (e.key === 'Enter' && this.open) {
+                // Enter picks from the list; it never moves to the next step while the list is open.
+                e.preventDefault();
+                if (this.active >= 0) pick(this.matches[this.active]);
+                return;
+            }
+            if (!this.open || !this.matches.length) {
+                if (e.key === 'ArrowDown' && this.matches.length) { this.open = true; this.active = 0; e.preventDefault(); }
+                return;
+            }
+            if (e.key === 'ArrowDown') { this.active = (this.active + 1) % this.matches.length; e.preventDefault(); }
+            else if (e.key === 'ArrowUp') { this.active = (this.active - 1 + this.matches.length) % this.matches.length; e.preventDefault(); }
+        }
     }
-
-    async function search(q) {
-        const mine = ++seq;
-        searching = true;
-        const { data, error } = await sb.from('s4_clients')
-            .select('id, first_name, last_name, phone_e164, email, email_verified, has_gold_card')
-            .ilike('last_name', `${q.replace(/[\\%_]/g, '\\$&')}%`)
-            .order('last_name').order('first_name')
-            .limit(8);
-        if (mine !== seq) return;
-        searching = false;
-        matches = error ? [] : data;
-        searched = q;
-        active = -1;
-        listOpen = lastName.trim() === q;
-    }
+    const lastSearch = new NameSearch('last_name');
+    const firstSearch = new NameSearch('first_name');
+    let searchHint = $derived.by(() => {
+        const s = [lastSearch, firstSearch].find(x => x.searching) ?? [lastSearch, firstSearch].find(x => x.text().length >= 3 && x.searched === x.text());
+        if (!s) return '';
+        if (s.searching) return 'Searching…';
+        return s.matches.length
+            ? `${s.matches.length} matching ${s.matches.length === 1 ? 'client' : 'clients'}. Choose one, or keep typing for a new client.`
+            : 'New client.';
+    });
 
     function pick(c) {
         client = c;
+        if (c.is_family) mode = 'staff';
+        if (mode === 'staff' && (c.phone_e164 || c.email)) showContact = true;
         lastName = c.last_name ?? '';
         firstName = c.first_name ?? '';
-        phone = showPhone(c.phone_e164);
+        ({ country: phoneCountry, text: phone } = fromE164(c.phone_e164));
         email = c.email ?? '';
-        goldCard = c.has_gold_card;
-        listOpen = false;
-        active = -1;
+        goldCard = !!c.has_gold_card;
+        lastSearch.clear();
+        firstSearch.clear();
         errors = {};
     }
-    function unpick() {
+    /** Forget the chosen client and what it filled in (except the name being typed). */
+    function unpick(keep) {
         client = null;
-        firstName = phone = email = '';
+        if (keep !== 'last_name') lastName = '';
+        if (keep !== 'first_name') firstName = '';
+        phone = email = '';
+        phoneCountry = 'NZ';
         goldCard = false;
     }
 
-    function onLastKeydown(e) {
-        if (e.key === 'Escape' && listOpen) { listOpen = false; e.preventDefault(); e.stopPropagation(); return; }
-        if (e.key === 'Enter' && listOpen) {
-            // Enter picks from the list; it never moves to the next step while the list is open.
-            e.preventDefault();
-            if (active >= 0) pick(matches[active]);
-            return;
-        }
-        if (!listOpen || !matches.length) {
-            if (e.key === 'ArrowDown' && matches.length) { listOpen = true; active = 0; e.preventDefault(); }
-            return;
-        }
-        if (e.key === 'ArrowDown') { active = (active + 1) % matches.length; e.preventDefault(); }
-        else if (e.key === 'ArrowUp') { active = (active - 1 + matches.length) % matches.length; e.preventDefault(); }
+    // Client ↔ Friends & family: start the person afresh, without the other mode's errors.
+    function switchMode() {
+        unpick();
+        lastSearch.clear();
+        firstSearch.clear();
+        errors = {};
+        stepError = '';
+        showContact = false;
     }
 
     // ─── step 2: services ───────────────────────────────────────────────
@@ -146,7 +214,10 @@
         : []);
     let picked = $derived(catalogue ? catalogue.services.filter(s => chosen.includes(s.id)) : []);
     let duration = $derived(picked.reduce((n, s) => n + s.duration, 0));
-    let total = $derived(picked.reduce((n, s) => n + priceFor(s, goldCard), 0));
+    let normalTotal = $derived(picked.reduce((n, s) => n + priceFor(s, goldCard), 0));
+    // Friends & family may pay a different price (e.g. a family discount).
+    let priceCents = $derived(mode === 'staff' && String(priceText ?? '').trim() !== '' && Number.isFinite(Number(priceText)) ? Math.round(Number(priceText) * 100) : null);
+    let total = $derived(priceCents != null ? priceCents / 100 : normalTotal);
     let onlyAddons = $derived(picked.length > 0 && picked.every(s => s.addon));
     // The visit's own waiting periods, in the salon's order (as the database does).
     let ownGaps = $derived.by(() => {
@@ -207,7 +278,7 @@
                 start: new Date(r.starts_at).getTime(),
                 end: new Date(r.ends_at).getTime(),
                 gaps: bookingGaps(r),
-                canNest: !rows.some(o => sitsInside(o, r))
+                kind: 'booking'
             }));
             dayOff = (t.data ?? []).map(r => ({ start: new Date(r.starts_at).getTime(), end: new Date(r.ends_at).getTime() }));
             dayLoaded = iso;
@@ -223,6 +294,8 @@
         };
     };
     const overlapsOff = (v) => dayOff.some(t => t.start < v.end && t.end > v.start);
+    // People already added to this booking (same day) count as busy too.
+    let busyWithParty = $derived([...dayBusy, ...party.filter(m => m.date === date).map(m => ({ start: m.start, end: m.end, gaps: m.gaps, kind: 'booking' }))]);
     let dayHours = $derived(ISO_DATE.test(date) ? hours[weekdayOf(date)] ?? null : null);
 
     // Free start times on the grid, within opening hours, from now on.
@@ -233,7 +306,7 @@
         for (let m = dayHours.open; m + duration <= dayHours.close; m += slotStep) {
             const hhmm = minutesToHHMM(m);
             const v = visitAt(hhmm);
-            if (v.start < now || overlapsOff(v) || clashes(v, dayBusy)) continue;
+            if (v.start < now || overlapsOff(v) || clashes(v, busyWithParty)) continue;
             out.push(hhmm);
         }
         return out;
@@ -256,20 +329,23 @@
     let endsAt = $derived(time && duration && ISO_DATE.test(date) ? visitAt(time).end : null);
 
     // ─── steps ──────────────────────────────────────────────────────────
-    const PHONE = /^\+?[\d\s\-()]+$/;
     function validate(n) {
         const e = {};
         if (n === 1) {
             if (!firstName.trim()) e.firstName = 'Enter the client’s first name.';
-            const digits = phone.replace(/\D/g, '');
-            if (phone.trim() && (!PHONE.test(phone.trim()) || digits.length < 7 || digits.length > 15)) e.phone = 'That phone number doesn’t look right.';
-            if (!phone.trim() && !email.trim()) e.contact = 'Enter a phone number or an email so you can reach the client.';
+            if (phone.trim() && !isValidPhone(phoneCountry, phone)) {
+                e.phone = phoneCountry ? `That doesn’t look like a ${countryName(phoneCountry)} number.` : 'Enter the full number, starting with + and the country code.';
+            }
+            if (mode === 'client' && !phone.trim() && !email.trim() && !client?.arranged_by) {
+                e.contact = 'Enter a phone number or an email so you can reach the client.';
+            }
             else if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'That email doesn’t look right.';
         }
         if (n === 2) {
             if (!catalogue) e.services = 'Services are still loading.';
             else if (!picked.length) e.services = 'Choose at least one service.';
             else if (onlyAddons) e.services = 'Add-ons need a main service.';
+            if (mode === 'staff' && String(priceText ?? '').trim() !== '' && !(Number(priceText) >= 0)) e.price = 'Enter a price of $0 or more.';
         }
         if (n === 3) {
             if (!ISO_DATE.test(date)) e.date = 'Choose a date.';
@@ -277,7 +353,7 @@
         }
         return e;
     }
-    const FIELD_ORDER = ['firstName', 'phone', 'contact', 'email', 'services', 'date', 'time'];
+    const FIELD_ORDER = ['firstName', 'email', 'contact', 'phone', 'services', 'price', 'date', 'time'];
 
     async function showStep(n, err = {}, msg = '') {
         step = n;
@@ -285,7 +361,7 @@
         stepError = msg;
         await tick();
         const first = FIELD_ORDER.find(k => err[k]);
-        const target = first && document.getElementById(`${uid}-f-${first === 'contact' ? 'phone' : first}`);
+        const target = first && document.getElementById(`${uid}-f-${first === 'contact' ? 'email' : first}`);
         (target || document.getElementById(`${uid}-h${n}`))?.focus();
     }
 
@@ -311,39 +387,107 @@
         phone_in_use: [1, 'That phone number belongs to another client. Choose them from the last name list, or use a different number.'],
         client_not_found: [1, 'That client no longer exists. Clear the selection and try again.'],
         slot_taken: [3, 'That time was just taken. Choose another time.'],
+        invalid_price: [2, 'Enter a price of $0 or more.'],
+        invalid_kind: [1, 'Choose Client or Friends & family.'],
         invalid_time: [3, 'Choose a date and time.']
     };
+
+    /** The person currently in the form, as one entry of the booking. */
+    function current() {
+        const v = visitAt(time);
+        return {
+            client, lastName: lastName.trim(), firstName: firstName.trim(),
+            phoneE164: phone.trim() ? toE164(phoneCountry, phone) : null, email: email.trim() || null,
+            goldCard, chosen: [...chosen], services: picked.map(x => x.name), total, ranged: picked.some(x => x.range),
+            date, time, start: v.start, end: v.end, gaps: v.gaps, notes: notes.trim() || null,
+            kind: mode, priceCents, priceText
+        };
+    }
+
+    /** Add this person to the booking and start on the next one: same services and day, straight after. */
+    function addPerson() {
+        for (const n of [1, 2, 3]) {
+            const err = validate(n);
+            if (Object.keys(err).length) { showStep(n, err); return; }
+        }
+        const me = current();
+        party = [...party, me];
+        const kept = { chosen: me.chosen, date: me.date, nextAt: me.end };
+        lastName = firstName = phone = email = notes = time = stepError = '';
+        client = null; phoneCountry = 'NZ'; goldCard = false;
+        lastSearch.clear(); firstSearch.clear();
+        chosen = kept.chosen; date = kept.date;
+        // Same kind of booking and price rule for the next person.
+        mode = me.kind; priceText = me.priceText; showContact = false;
+        nextStart = kept.nextAt;
+        showStep(1);
+    }
+    // Suggest the time straight after the previous person, once it's known to be free.
+    let nextStart = $state(null);
+    $effect(() => {
+        if (nextStart == null || dayLoaded !== date || !freeTimes.length) return;
+        const hhmm = new Intl.DateTimeFormat('en-NZ', { timeZone: SALON_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(nextStart);
+        untrack(() => {
+            time = freeTimes.includes(hhmm) ? hhmm : (freeTimes.find(t => t > hhmm) ?? '');
+            nextStart = null;
+        });
+    });
+    const removePerson = (i) => { party = party.filter((_, j) => j !== i); };
 
     async function save() {
         for (const n of [1, 2, 3]) {
             const err = validate(n);
             if (Object.keys(err).length) { showStep(n, err); return; }
         }
+        const everyone = [...party, current()];
         saving = true;
         stepError = '';
-        const { data, error } = await sb.rpc('s4_staff_create_booking', {
-            p_client_id: client?.id ?? null,
-            p_last_name: lastName.trim(),
-            p_first_name: firstName.trim(),
-            p_phone: phone.trim() || null,
-            p_email: email.trim() || null,
-            p_service_ids: chosen,
-            p_starts_at: salonInstant(date, time, SALON_TZ).toISOString(),
-            p_gold_card: goldCard,
-            p_notes: notes.trim() || null
+        const { data, error } = await sb.rpc('s4_staff_create_bookings', {
+            p_bookings: everyone.map(m => ({
+                client_id: m.client?.id ?? null,
+                last_name: m.lastName,
+                first_name: m.firstName,
+                phone: m.phoneE164,
+                email: m.email,
+                service_ids: m.chosen,
+                starts_at: new Date(m.start).toISOString(),
+                gold_card: m.goldCard,
+                notes: m.notes,
+                kind: m.kind,
+                price_cents: m.priceCents
+            }))
         });
         saving = false;
         if (error) {
             const [n, msg] = SERVER[errorCode(error)] ?? [4, adminError(error)];
+            const who = party.length ? ' (one of the people in this booking)' : '';
             if (n === 3) dayRefresh += 1;
-            showStep(n, {}, msg);
+            showStep(party.length ? 4 : n, {}, msg + who);
             return;
         }
-        const iso = date;
+        const iso = everyone[0].date;
         open = false;
-        oncreated?.(data.id, iso);
+        oncreated?.(data[0].id, iso);
     }
 </script>
+
+{#snippet clientList(search)}
+    {#if search.open}
+        <ul class="options" id={search.listId} role="listbox" aria-label="Matching clients">
+            {#each search.matches as c, i (c.id)}
+                <li id={search.optionId(i)} role="option" aria-selected={i === search.active} class:active={i === search.active}
+                    onpointerdown={(e) => { e.preventDefault(); pick(c); }}
+                    onpointermove={() => search.active = i}>
+                    <span class="who"><strong>{c.last_name}</strong>, {c.first_name}</span>
+                    <span class="how">{c.phone_e164 ? showPhone(c.phone_e164) : c.email || 'No contact details'}</span>
+                    {#if c.has_gold_card}<span class="tag">Gold Card</span>{/if}
+                </li>
+            {:else}
+                <li class="none" role="presentation">No match: a new client will be added.</li>
+            {/each}
+        </ul>
+    {/if}
+{/snippet}
 
 <Modal bind:open title="New booking" wide>
     <ol class="steps" aria-label="Steps">
@@ -363,61 +507,70 @@
     <form id="{uid}-form" class="modal-form" onsubmit={next} novalidate>
         {#if step === 1}
             <h3 id="{uid}-h1" class="wide step-title" tabindex="-1">Client</h3>
-            <div class="wide combo">
-                <label for="{uid}-last">Last name</label>
+            <div class="wide mode" role="radiogroup" aria-label="Type of booking">
+                <label class:on={mode === 'client'}><input type="radio" name="{uid}-mode" value="client" bind:group={mode} onchange={switchMode} /> Client</label>
+                <label class:on={mode === 'staff'}><input type="radio" name="{uid}-mode" value="staff" bind:group={mode} onchange={switchMode} /> Friends &amp; family</label>
+            </div>
+            {#if mode === 'staff'}
+                <p class="wide mode-note"><i class="ph ph-heart" aria-hidden="true"></i>
+                    <span>Booked by <strong>{staffName || 'you'}</strong>. No phone or email needed: you're their contact.</span></p>
+            {/if}
+            <div class="combo name-field">
+                <label for="{uid}-f-firstName">First name</label>
                 <div class="combo-field">
-                    <input id="{uid}-last" bind:this={lastEl} bind:value={lastName} oninput={onLastInput} onkeydown={onLastKeydown}
-                        onblur={() => setTimeout(() => listOpen = false, 150)}
-                        onfocus={() => { if (matches.length && !client && lastName.trim() === searched) listOpen = true; }}
-                        role="combobox" aria-autocomplete="list" aria-controls={listId} aria-expanded={listOpen}
-                        aria-activedescendant={listOpen && active >= 0 ? optionId(active) : undefined}
-                        aria-describedby="{uid}-last-hint" autocomplete="off" autocapitalize="words" spellcheck="false" />
-                    {#if listOpen}
-                        <ul class="options" id={listId} role="listbox" aria-label="Matching clients">
-                            {#each matches as c, i (c.id)}
-                                <li id={optionId(i)} role="option" aria-selected={i === active} class:active={i === active}
-                                    onpointerdown={(e) => { e.preventDefault(); pick(c); }}
-                                    onpointermove={() => active = i}>
-                                    <span class="who"><strong>{c.last_name}</strong>, {c.first_name}</span>
-                                    <span class="how">{c.phone_e164 ? showPhone(c.phone_e164) : c.email || 'No contact details'}</span>
-                                    {#if c.has_gold_card}<span class="tag">Gold Card</span>{/if}
-                                </li>
-                            {:else}
-                                <li class="none" role="presentation">No match: a new client will be added.</li>
-                            {/each}
-                        </ul>
-                    {/if}
+                    <input id="{uid}-f-firstName" bind:this={firstEl} bind:value={firstName}
+                        oninput={() => firstSearch.input()} onkeydown={(e) => firstSearch.keydown(e)}
+                        onfocus={() => firstSearch.focus()} onblur={() => firstSearch.blur()}
+                        role="combobox" aria-autocomplete="list" aria-controls={firstSearch.listId} aria-expanded={firstSearch.open}
+                        aria-activedescendant={firstSearch.open && firstSearch.active >= 0 ? firstSearch.optionId(firstSearch.active) : undefined}
+                        aria-invalid={!!errors.firstName}
+                        aria-describedby={errors.firstName ? `${uid}-e-firstName ${uid}-search-hint` : `${uid}-search-hint`}
+                        autocomplete="off" autocapitalize="words" spellcheck="false" />
+                    {@render clientList(firstSearch)}
                 </div>
-                <p id="{uid}-last-hint" class="hint" aria-live="polite">
-                    {#if client}
-                        <span class="chip"><i class="ph ph-user-check" aria-hidden="true"></i> Existing client
-                            <button type="button" aria-label="Clear the chosen client" onclick={unpick}><i class="ph ph-x" aria-hidden="true"></i></button></span>
-                    {:else if searching}Searching…
-                    {:else if lastName.trim().length >= 3 && searched === lastName.trim()}
-                        {matches.length ? `${matches.length} matching ${matches.length === 1 ? 'client' : 'clients'}. Choose one, or keep typing for a new client.` : 'New client.'}
-                    {:else}Type three letters to find an existing client.{/if}
-                </p>
+                {#if errors.firstName}<span class="field-error" id="{uid}-e-firstName">{errors.firstName}</span>{/if}
             </div>
 
-            <label class="wide">
-                First name
-                <input id="{uid}-f-firstName" bind:value={firstName} autocomplete="off" autocapitalize="words"
-                    aria-invalid={!!errors.firstName} aria-describedby={errors.firstName ? `${uid}-e-firstName` : undefined} />
-                {#if errors.firstName}<span class="field-error" id="{uid}-e-firstName">{errors.firstName}</span>{/if}
-            </label>
+            <div class="combo name-field">
+                <label for="{uid}-last">Last name</label>
+                <div class="combo-field">
+                    <input id="{uid}-last" bind:value={lastName}
+                        oninput={() => lastSearch.input()} onkeydown={(e) => lastSearch.keydown(e)}
+                        onfocus={() => lastSearch.focus()} onblur={() => lastSearch.blur()}
+                        role="combobox" aria-autocomplete="list" aria-controls={lastSearch.listId} aria-expanded={lastSearch.open}
+                        aria-activedescendant={lastSearch.open && lastSearch.active >= 0 ? lastSearch.optionId(lastSearch.active) : undefined}
+                        aria-describedby="{uid}-search-hint" autocomplete="off" autocapitalize="words" spellcheck="false" />
+                    {@render clientList(lastSearch)}
+                </div>
+            </div>
+
+            <p id="{uid}-search-hint" class="wide hint search-hint" aria-live="polite">
+                {#if client}
+                    <span class="chip"><i class="ph ph-user-check" aria-hidden="true"></i> Existing client
+                        <button type="button" aria-label="Clear the chosen client" onclick={() => unpick()}><i class="ph ph-x" aria-hidden="true"></i></button></span>
+                {:else if searchHint}{searchHint}
+                {:else if mode === 'staff'}Type three letters to find someone you've booked before.
+                {:else}Type three letters of either name to find an existing client.{/if}
+            </p>
+
+            {#if mode === 'client' || showContact}
             <label>
-                Phone
-                <input id="{uid}-f-phone" type="tel" inputmode="tel" bind:value={phone} autocomplete="off" placeholder="022 188 5240"
-                    aria-invalid={!!(errors.phone || errors.contact)}
-                    aria-describedby={errors.phone ? `${uid}-e-phone` : errors.contact ? `${uid}-e-contact` : undefined} />
-                {#if errors.phone}<span class="field-error" id="{uid}-e-phone">{errors.phone}</span>{/if}
-            </label>
-            <label>
-                <span>Email <span class="optional">(or phone)</span></span>
+                Email
                 <input id="{uid}-f-email" type="email" bind:value={email} autocomplete="off" disabled={!!client?.email_verified}
-                    aria-invalid={!!(errors.email || errors.contact)} aria-describedby={errors.email ? `${uid}-e-email` : undefined} />
+                    aria-invalid={!!(errors.email || errors.contact)}
+                    aria-describedby={errors.email ? `${uid}-e-email` : errors.contact ? `${uid}-e-contact` : undefined} />
                 {#if errors.email}<span class="field-error" id="{uid}-e-email">{errors.email}</span>{/if}
             </label>
+            <div class="field">
+                <label for="{uid}-f-phone">Phone <span class="optional">{mode === 'staff' ? '(optional)' : '(or email)'}</span></label>
+                <PhoneInput id="{uid}-f-phone" bind:country={phoneCountry} bind:value={phone}
+                    invalid={!!(errors.phone || errors.contact)}
+                    describedby={errors.phone ? `${uid}-e-phone` : errors.contact ? `${uid}-e-contact` : undefined} />
+                {#if errors.phone}<span class="field-error" id="{uid}-e-phone">{errors.phone}</span>{/if}
+            </div>
+            {:else}
+                <div class="wide"><button type="button" class="link-btn" onclick={() => showContact = true}><i class="ph ph-plus" aria-hidden="true"></i> Add contact details (optional)</button></div>
+            {/if}
             {#if errors.contact}<p class="wide field-error" id="{uid}-e-contact">{errors.contact}</p>{/if}
 
         {:else if step === 2}
@@ -468,6 +621,16 @@
                 </p>
             </fieldset>
             <div class="wide"><Switch bind:checked={goldCard} label="Gold Card prices" showLabel /></div>
+            {#if mode === 'staff' && picked.length}
+                <label class="price">
+                    <span>Price <span class="optional">(friends &amp; family)</span></span>
+                    <span class="money"><span aria-hidden="true">$</span>
+                        <input id="{uid}-f-price" type="number" inputmode="decimal" min="0" step="0.5" bind:value={priceText}
+                            placeholder={String(normalTotal)} aria-invalid={!!errors.price}
+                            aria-describedby="{uid}-price-hint" /></span>
+                    <span class="hint" id="{uid}-price-hint">{#if errors.price}<span class="field-error">{errors.price}</span>{:else if priceCents != null && priceCents !== Math.round(normalTotal * 100)}Was {formatPrice(normalTotal)}{:else}Leave empty to charge the normal {formatPrice(normalTotal)}.{/if}</span>
+                </label>
+            {/if}
 
         {:else if step === 3}
             <h3 id="{uid}-h3" class="wide step-title" tabindex="-1">Date &amp; time</h3>
@@ -496,12 +659,27 @@
             </label>
 
         {:else}
-            <h3 id="{uid}-h4" class="wide step-title" tabindex="-1">Summary</h3>
+            <h3 id="{uid}-h4" class="wide step-title" tabindex="-1">Summary{#if party.length}{' · '}{party.length + 1} people{/if}</h3>
+            {#if party.length}
+                <section class="wide review" aria-labelledby="{uid}-party">
+                    <header><h4 id="{uid}-party">Also in this booking</h4></header>
+                    <ul class="lines party">
+                        {#each party as m, i}
+                            <li>
+                                <span><strong>{m.firstName} {m.lastName}</strong> · {m.services.join(', ')} · {clockAt(m.start)}–{clockAt(m.end)}{#if m.kind === 'staff'}<span class="muted"> · friends &amp; family</span>{/if}</span>
+                                <button type="button" class="remove-person" aria-label="Remove {m.firstName} from this booking" onclick={() => removePerson(i)}><i class="ph ph-x" aria-hidden="true"></i></button>
+                            </li>
+                        {/each}
+                    </ul>
+                </section>
+                <p class="wide muted">This person:</p>
+            {/if}
             <section class="wide review" aria-labelledby="{uid}-s1">
                 <header><h4 id="{uid}-s1">Client</h4><button type="button" class="edit" onclick={() => showStep(1)}>Edit<span class="sr-only"> client</span></button></header>
                 <p class="strong">{firstName.trim()} {lastName.trim()} <span class="tag" class:retired={!client}>{client ? 'Existing client' : 'New client'}</span></p>
-                {#if phone.trim()}<p>{phone.trim()}</p>{/if}
                 {#if email.trim()}<p>{email.trim()}</p>{/if}
+                {#if phone.trim()}<p>{showInternational(phoneCountry, phone)}</p>{/if}
+                {#if mode === 'staff'}<p><span class="tag">Friends &amp; family</span> <span class="muted">booked by {staffName || 'you'}</span></p>{/if}
             </section>
             <section class="wide review" aria-labelledby="{uid}-s2">
                 <header><h4 id="{uid}-s2">Services</h4><button type="button" class="edit" onclick={() => showStep(2)}>Edit<span class="sr-only"> services</span></button></header>
@@ -509,7 +687,7 @@
                     {#each picked as s (s.id)}
                         <li><span>{s.name}</span><span>{formatPrice(priceFor(s, goldCard), s.range)}</span></li>
                     {/each}
-                    <li class="total"><span>{formatDuration(duration)}{#if waiting} · {waiting} min waiting{/if}{#if goldCard} · Gold Card{/if}</span><span>{formatPrice(total, picked.some(s => s.range))}</span></li>
+                    <li class="total"><span>{formatDuration(duration)}{#if waiting} · {waiting} min waiting{/if}{#if goldCard} · Gold Card{/if}</span><span>{#if priceCents != null && priceCents !== Math.round(normalTotal * 100)}<s class="muted was">{formatPrice(normalTotal)}</s> {/if}{formatPrice(total, priceCents == null && picked.some(s => s.range))}</span></li>
                 </ul>
             </section>
             <section class="wide review" aria-labelledby="{uid}-s3">
@@ -520,6 +698,12 @@
                 <span>Notes <span class="optional">(optional)</span></span>
                 <textarea bind:value={notes} rows="2" maxlength="1000"></textarea>
             </label>
+            <div class="wide add-person">
+                <button type="button" class="secondary with-icon" onclick={addPerson} disabled={party.length >= 9}>
+                    <i class="ph ph-user-plus" aria-hidden="true"></i> Add another person
+                </button>
+                <span class="muted">Book family or friends straight after, in one go.</span>
+            </div>
         {/if}
 
         {#if stepError}<p class="error wide" role="alert">{stepError}</p>{/if}
@@ -658,6 +842,24 @@
     }
 
     /* Last name with its list of matching clients */
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        min-width: 0;
+    }
+    .modal-form .field > label {
+        color: var(--adm-text);
+        display: block;
+        font-size: 0.9375rem;
+        font-weight: 600;
+    }
+    .combo.name-field {
+        align-self: start;
+    }
+    .search-hint {
+        margin-top: -0.625rem;
+    }
     .combo {
         display: flex;
         flex-direction: column;
@@ -816,6 +1018,100 @@
         font-size: 0.875rem;
         font-variant-numeric: tabular-nums;
         text-align: right;
+    }
+    .mode {
+        background-color: var(--adm-sunken);
+        border: 1px solid var(--adm-border);
+        border-radius: 0.375rem;
+        display: flex;
+        padding: 0.1875rem;
+    }
+    .modal-form .mode label {
+        align-items: center;
+        border-radius: 0.25rem;
+        color: var(--adm-text-muted);
+        cursor: pointer;
+        flex: 1;
+        flex-direction: row;
+        font-weight: 600;
+        gap: 0.375rem;
+        justify-content: center;
+        min-height: 2.5rem;
+        position: relative;
+    }
+    .modal-form .mode label.on {
+        background-color: var(--adm-inverse-bg);
+        color: var(--adm-inverse-text);
+    }
+    .mode input {
+        height: 1px;
+        opacity: 0;
+        position: absolute;
+        width: 1px;
+    }
+    .mode label:has(input:focus-visible) {
+        outline: 2px solid var(--adm-focus);
+        outline-offset: 2px;
+    }
+    .mode-note {
+        align-items: flex-start;
+        color: var(--adm-text);
+        display: flex;
+        gap: 0.5rem;
+        margin-top: -0.25rem;
+    }
+    .mode-note i {
+        color: var(--adm-accent-line);
+        margin-top: 0.1875rem;
+    }
+    .link-btn {
+        align-items: center;
+        color: var(--adm-text);
+        cursor: pointer;
+        display: inline-flex;
+        font-weight: 600;
+        gap: 0.375rem;
+        min-height: 2.75rem;
+        text-decoration: underline;
+        text-decoration-color: var(--adm-accent-line);
+        text-underline-offset: 3px;
+    }
+    .money {
+        align-items: center;
+        display: flex;
+        gap: 0.375rem;
+        max-width: 12rem;
+    }
+    .price .hint {
+        font-weight: 400;
+    }
+    .was {
+        margin-right: 0.25rem;
+    }
+    .add-person {
+        align-items: center;
+        border-top: 1px dashed var(--adm-border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+        padding-top: 0.875rem;
+    }
+    .party li {
+        align-items: center;
+    }
+    .remove-person {
+        border-radius: 50%;
+        color: var(--adm-text-muted);
+        cursor: pointer;
+        display: grid;
+        flex: none;
+        height: 2.75rem;
+        place-items: center;
+        width: 2.75rem;
+    }
+    .remove-person:hover {
+        background-color: var(--adm-danger-bg);
+        color: var(--adm-danger);
     }
     .summary-line {
         color: var(--adm-text);

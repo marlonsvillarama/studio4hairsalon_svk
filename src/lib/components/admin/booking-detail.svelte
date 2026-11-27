@@ -2,7 +2,7 @@
     import { tick } from 'svelte';
     import { getSupabase } from '$lib/supabase';
     import { salonInstant } from '$lib/data/availability';
-    import { SALON_TZ, salonDay, salonTime, showTime, showDay, showShortDay, dollars, showPhone, adminError, STATUS_LABEL, bookingGaps, sitsInside } from '$lib/admin';
+    import { SALON_TZ, salonDay, salonTime, showTime, showDay, showShortDay, dollars, showPhone, adminError, STATUS_LABEL, bookingGaps, overlapsWith } from '$lib/admin';
     import { invoiceForBooking, invoiceNumber } from '$lib/invoices';
     import Switch from './switch.svelte';
     import InvoiceEditor from './invoice-editor.svelte';
@@ -69,8 +69,8 @@
 
     // Waiting time, and who shares it.
     let gaps = $derived(bookingGaps(b));
-    let guests = $derived(bookings.filter(x => sitsInside(x, b)));
-    let host = $derived(bookings.find(x => sitsInside(b, x)));
+    // Other clients in at the same time (inside or interleaved with this visit).
+    let shared = $derived(bookings.filter(x => overlapsWith(x, b)).toSorted((x, z) => x.starts_at.localeCompare(z.starts_at)));
     const nameOf = (x) => `${x.client?.first_name ?? ''} ${x.client?.last_name ?? ''}`.trim() || 'Another client';
     let gapsOpen = $state(true);
     $effect(() => { gapsOpen = b.gaps_open; });
@@ -85,8 +85,8 @@
         busy = false;
         if (error) {
             actionError = adminError(error);
-            if (error.code === '23P01' && guests.length) {
-                actionError += ` ${guests.map(nameOf).join(' and ')} ${guests.length === 1 ? 'is' : 'are'} booked in the waiting time: move that booking first.`;
+            if (error.code === '23P01' && shared.length) {
+                actionError += ` ${shared.map(nameOf).join(' and ')} ${shared.length === 1 ? 'shares' : 'share'} this time: move that booking first.`;
             }
             return false;
         }
@@ -181,10 +181,10 @@
 <article class="detail panel" aria-labelledby="detail-title-{b.id}">
     <header>
         <div>
-            <h2 id="detail-title-{b.id}">{b.client?.first_name} {b.client?.last_name ?? ''}</h2>
-            <p class="when">{showDay(b.starts_at)}, {showTime(b.starts_at)}–{showTime(b.ends_at)}</p>
+            <h2 id="detail-title-{b.id}" class="ref">{b.reference}</h2>
+            <p class="when">{showDay(b.starts_at)}</p>
+            <p class="when">{showTime(b.starts_at)}–{showTime(b.ends_at)}</p>
         </div>
-        <span class="status s-{b.status}">{STATUS_LABEL[b.status]}</span>
         {#if onclose}
             <button type="button" class="close" aria-label="Close booking details" onclick={onclose}>
                 <i class="ph ph-x" aria-hidden="true"></i>
@@ -192,92 +192,125 @@
         {/if}
     </header>
 
-    <dl>
-        <div><dt>Phone</dt><dd>{#if b.client?.phone_e164}<a href="tel:{b.client.phone_e164}">{showPhone(b.client.phone_e164)}</a>{:else}<span class="muted">No phone</span>{/if}</dd></div>
-        {#if b.client?.email}
-            <div><dt>Email</dt><dd><a href="mailto:{b.client.email}">{b.client.email}</a>{#if b.client.email_verified} <span class="tag">Google</span>{/if}</dd></div>
+    <section class="box client-card" aria-label="Client">
+        {#if b.client?.id}
+            <a class="client-name" href="/admin/clients/{b.client.id}">
+                <span>{b.client.first_name} {b.client.last_name ?? ''}</span><i class="ph ph-caret-right" aria-hidden="true"></i>
+            </a>
+        {:else}
+            <p class="client-name">{b.client?.first_name ?? 'Client'} {b.client?.last_name ?? ''}</p>
         {/if}
-        <div><dt>Services</dt><dd>
+        <ul class="contact">
+            {#if b.client?.email}
+                <li class="email">
+                    <i class="ph ph-envelope-simple" aria-hidden="true"></i>
+                    <span><a href="mailto:{b.client.email}">{b.client.email}</a>{#if b.client.email_verified}<span class="tag google"><i class="ph ph-google-logo" aria-hidden="true"></i> Signed in with Google</span>{/if}</span>
+                </li>
+            {/if}
+            {#if b.client?.phone_e164 || !b.client?.arranged}
+                <li>
+                    <i class="ph ph-phone" aria-hidden="true"></i>
+                    {#if b.client?.phone_e164}<a href="tel:{b.client.phone_e164}">{showPhone(b.client.phone_e164)}</a>{:else}<span class="muted">No phone</span>{/if}
+                </li>
+            {/if}
+            {#if b.client?.arranged}
+                {@const a = b.client.arranged}
+                <li>
+                    <i class="ph ph-users" aria-hidden="true"></i>
+                    <span>Arranged by <a href="/admin/clients/{a.id}">{a.first_name} {a.last_name ?? ''}</a>
+                        {#if !b.client.phone_e164 && !b.client.email}
+                            <span class="via">Contact via {a.first_name}{#if a.phone_e164}: <a href="tel:{a.phone_e164}">{showPhone(a.phone_e164)}</a>{:else if a.email}: <a href="mailto:{a.email}">{a.email}</a>{/if}</span>
+                        {/if}
+                    </span>
+                </li>
+            {/if}
+        </ul>
+    </section>
+
+    <section class="box summary" aria-label="Booking">
+        <span class="status s-{b.status}">{STATUS_LABEL[b.status]}</span>
+        <div>
+            <h3 class="label">Services</h3>
             <ul class="items">
                 {#each items as i}
-                    <li><span>{i.name}{#if i.gold_card_applied} <span class="tag">Gold Card</span>{/if}{#if retired(i)} <span class="tag retired">No longer offered</span>{/if}</span><span>{dollars(i.price_cents)}</span></li>
+                    <li><span>{i.name}{#if i.gold_card_applied} <span class="tag">Gold Card</span>{/if}{#if retired(i)} <span class="tag retired">No longer offered</span>{/if}</span></li>
                 {/each}
             </ul>
-        </dd></div>
-        {#if b.source === 'admin'}<div><dt>Booked</dt><dd>By staff</dd></div>{/if}
-        <div><dt>Total</dt><dd><strong>{b.has_variable_price ? 'from ' : ''}{dollars(b.total_cents)}</strong></dd></div>
-        {#if gaps.length}
-            <div><dt>Waiting</dt><dd>
-                {#each gaps as g}<span class="gap">{showTime(g.start)}–{showTime(g.end)}</span>{/each}
-                {#each guests as x (x.id)}<span class="gap">{nameOf(x)} at {showTime(x.starts_at)}</span>{/each}
-                {#if b.status === 'confirmed'}
-                    <Switch bind:checked={gapsOpen} label="Offer online" showLabel disabled={busy} onchange={offerGaps} />
-                {/if}
-            </dd></div>
-        {/if}
-        {#if host}<div><dt>During</dt><dd>{nameOf(host)}'s waiting time</dd></div>{/if}
-        {#if b.notes}<div><dt>Client’s note</dt><dd class="notes">"{b.notes}"</dd></div>{/if}
-        {#if b.cancel_reason}<div><dt>Cancelled</dt><dd>{b.cancel_reason}</dd></div>{/if}
-        <div><dt>Reference</dt><dd class="ref">{b.reference}</dd></div>
-    </dl>
-
-    <section class="staff-notes" aria-labelledby="notes-title-{b.id}">
-        <div class="notes-head">
-            <h3 id="notes-title-{b.id}">Notes <span class="muted">· staff only</span></h3>
-            {#if !noteOpen}
-                <button type="button" class="secondary with-icon small" onclick={openNote}>
-                    <i class="ph ph-note-pencil" aria-hidden="true"></i> Add note
-                </button>
-            {/if}
         </div>
-        {#if noteOpen}
-            <form class="inline" onsubmit={saveNote}>
-                <label for="note-{b.id}" class="sr-only">New note</label>
-                <textarea id="note-{b.id}" bind:this={noteEl} bind:value={noteText} rows="3" maxlength={NOTE_MAX}
-                    onkeydown={noteKeydown} oninput={() => noteError = ''} placeholder="e.g. Used colour 6.1, 30 min"
-                    aria-invalid={!!noteError} aria-describedby="note-help-{b.id}"></textarea>
-                <p id="note-help-{b.id}" class="note-help" class:error={!!noteError} role={noteError ? 'alert' : undefined}>
-                    {#if noteError}{noteError}
-                    {:else if noteText.length > NOTE_MAX - 100}{NOTE_MAX - noteText.length} characters left
-                    {:else}Only staff can see notes.{/if}
-                </p>
-                <div class="actions">
-                    <button type="submit" class="primary" disabled={noteSaving}>{noteSaving ? 'Saving…' : 'Save note'}</button>
-                    <button type="button" class="secondary" onclick={closeNote}>Cancel</button>
-                </div>
-            </form>
+        <div class="total-row">
+            <span>Total</span>
+            <strong>{b.has_variable_price ? 'from ' : ''}{dollars(b.total_cents)}</strong>
+        </div>
+        {#if b.source === 'admin' || b.kind === 'staff' || gaps.length || b.cancel_reason}
+            <dl class="meta">
+                {#if b.source === 'admin' || b.kind === 'staff'}
+                    <div><dt>Booked</dt><dd>
+                        {#if b.kind === 'staff'}<span class="tag">Friends &amp; family</span>{' '}{/if}By {b.booked_by?.display_name ?? 'staff'}
+                        {#if b.kind === 'staff' && !b.client?.phone_e164 && !b.client?.email}<span class="via">No contact details: reach them through {b.booked_by?.display_name ?? 'staff'}.</span>{/if}
+                    </dd></div>
+                {/if}
+                {#if gaps.length}
+                    <div><dt>Waiting</dt><dd>
+                        {#each gaps as g}<span class="gap">{showTime(g.start)}–{showTime(g.end)}</span>{/each}
+                        {#if b.status === 'confirmed'}
+                            <Switch bind:checked={gapsOpen} label="Offer online" showLabel disabled={busy} onchange={offerGaps} />
+                        {/if}
+                    </dd></div>
+                {/if}
+                {#if b.cancel_reason}<div><dt>Cancelled</dt><dd>{b.cancel_reason}</dd></div>{/if}
+            </dl>
         {/if}
-        {#if staffNotes.length}
-            <ul class="note-list">
-                {#each staffNotes as n (n.id)}
-                    <li>
-                        <p class="note-body">{n.body}</p>
-                        <div class="note-meta">
-                            <span>{n.author?.display_name ?? 'Staff'} · {noteWhen(n.created_at)}</span>
-                            <button type="button" class="note-delete" aria-label="Delete note from {noteWhen(n.created_at)}"
-                                title="Delete note" disabled={deletingNote === n.id} onclick={() => deleteNote(n)}>
-                                <i class="ph ph-trash" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    </li>
-                {/each}
-            </ul>
-        {:else if !noteOpen}
-            <p class="muted none">No notes yet.</p>
-        {/if}
+
+        <section class="staff-notes" aria-labelledby="notes-title-{b.id}">
+            <div class="notes-head">
+                <h3 id="notes-title-{b.id}">Notes</h3>
+                {#if !noteOpen}
+                    <button type="button" class="secondary with-icon small" onclick={openNote}>
+                        <i class="ph ph-note-pencil" aria-hidden="true"></i> Add note
+                    </button>
+                {/if}
+            </div>
+            {#if b.notes}<p class="client-note"><span class="muted">Client’s note:</span> "{b.notes}"</p>{/if}
+            {#if noteOpen}
+                <form class="inline" onsubmit={saveNote}>
+                    <label for="note-{b.id}" class="sr-only">New note</label>
+                    <textarea id="note-{b.id}" bind:this={noteEl} bind:value={noteText} rows="3" maxlength={NOTE_MAX}
+                        onkeydown={noteKeydown} oninput={() => noteError = ''} placeholder="e.g. Used colour 6.1, 30 min"
+                        aria-invalid={!!noteError} aria-describedby="note-help-{b.id}"></textarea>
+                    <p id="note-help-{b.id}" class="note-help" class:error={!!noteError} role={noteError ? 'alert' : undefined}>
+                        {#if noteError}{noteError}
+                        {:else if noteText.length > NOTE_MAX - 100}{NOTE_MAX - noteText.length} characters left
+                        {:else}Only staff can see notes.{/if}
+                    </p>
+                    <div class="actions">
+                        <button type="submit" class="primary" disabled={noteSaving}>{noteSaving ? 'Saving…' : 'Save note'}</button>
+                        <button type="button" class="secondary" onclick={closeNote}>Cancel</button>
+                    </div>
+                </form>
+            {/if}
+            {#if staffNotes.length}
+                <ul class="note-list">
+                    {#each staffNotes as n (n.id)}
+                        <li>
+                            <p class="note-body">{n.body}</p>
+                            <div class="note-meta">
+                                <span>{n.author?.display_name ?? 'Staff'} · {noteWhen(n.created_at)}</span>
+                                <button type="button" class="note-delete" aria-label="Delete note from {noteWhen(n.created_at)}"
+                                    title="Delete note" disabled={deletingNote === n.id} onclick={() => deleteNote(n)}>
+                                    <i class="ph ph-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </li>
+                    {/each}
+                </ul>
+            {:else if !noteOpen && !b.notes}
+                <p class="muted none">No notes yet.</p>
+            {/if}
+        </section>
     </section>
 
     {#if b.status === 'confirmed'}
-        {#if mode === 'cancel'}
-            <form class="inline" onsubmit={(e) => { e.preventDefault(); cancel(); }}>
-                <label for="reason-{b.id}">Reason (optional)</label>
-                <input id="reason-{b.id}" bind:value={cancelReason} placeholder="e.g. client called to cancel" />
-                <div class="actions">
-                    <button type="submit" class="danger" disabled={busy}>Cancel booking</button>
-                    <button type="button" class="secondary" onclick={() => mode = ''}>Keep it</button>
-                </div>
-            </form>
-        {:else if mode === 'reschedule'}
+        {#if mode === 'reschedule'}
             <form class="inline" onsubmit={(e) => { e.preventDefault(); reschedule(); }}>
                 <div class="pair">
                     <label>New date <input type="date" required bind:value={newDate} /></label>
@@ -289,12 +322,11 @@
                     <button type="button" class="secondary" onclick={() => mode = ''}>Back</button>
                 </div>
             </form>
-        {:else}
-            <div class="actions">
-                <button type="button" class="primary" disabled={busy} onclick={() => setStatus('completed')}>Mark completed</button>
-                <button type="button" class="secondary" onclick={() => mode = 'reschedule'}>Reschedule</button>
+        {:else if mode !== 'cancel'}
+            <div class="action-row">
+                <button type="button" class="primary" disabled={busy} onclick={() => setStatus('completed')}>Complete</button>
                 <button type="button" class="secondary" disabled={busy} onclick={() => setStatus('no_show')}>No-show</button>
-                <button type="button" class="danger" onclick={() => mode = 'cancel'}>Cancel…</button>
+                <button type="button" class="secondary" onclick={() => mode = 'reschedule'}>Move</button>
             </div>
         {/if}
     {:else}
@@ -311,19 +343,38 @@
                 </button>
             </div>
         {/if}
-        <div class="actions">
-            {#if !(b.status === 'completed' && invoice?.status === 'issued')}
+        {#if !(b.status === 'completed' && invoice?.status === 'issued')}
+            <div class="actions">
                 <button type="button" class="secondary" disabled={busy} onclick={() => setStatus('confirmed')}>Set back to confirmed</button>
-            {/if}
-        </div>
+            </div>
+        {/if}
+    {/if}
+
+    {#if b.status === 'confirmed' && mode === 'cancel'}
+        <form class="inline" onsubmit={(e) => { e.preventDefault(); cancel(); }}>
+            <label for="reason-{b.id}">Reason (optional)</label>
+            <input id="reason-{b.id}" bind:value={cancelReason} placeholder="e.g. client called to cancel" />
+            <div class="actions">
+                <button type="submit" class="danger" disabled={busy}>Cancel booking</button>
+                <button type="button" class="secondary" onclick={() => mode = ''}>Keep it</button>
+            </div>
+        </form>
     {/if}
     {#if actionError}<p class="error" role="alert">{actionError}</p>{/if}
 
-    {#if !invoice}
-        <div class="remove">
-            <button type="button" class="delete" onclick={askDelete}>
-                <i class="ph ph-trash" aria-hidden="true"></i> Delete booking
-            </button>
+    {#if (b.status === 'confirmed' && !mode) || !invoice}
+        <div class="foot">
+            {#if b.status === 'confirmed' && !mode}
+                <button type="button" class="danger cancel-btn" onclick={() => mode = 'cancel'}>
+                    <i class="ph ph-x-circle" aria-hidden="true"></i> Cancel booking
+                </button>
+            {/if}
+            {#if !invoice}
+                <button type="button" class="icon-btn danger-icon" onclick={askDelete}
+                    aria-label="Delete booking {b.reference ?? ''}" title="Delete booking">
+                    <i class="ph ph-trash" aria-hidden="true"></i>
+                </button>
+            {/if}
         </div>
     {/if}
 </article>
@@ -378,7 +429,11 @@
     }
     h2 {
         font-size: 1.25rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        letter-spacing: 0.06em;
         overflow-wrap: anywhere;
+        text-transform: uppercase;
     }
     .when {
         color: var(--adm-text-muted);
@@ -402,6 +457,7 @@
         color: var(--adm-text);
     }
     .status {
+        align-self: flex-start;
         border-radius: 999px;
         font-size: 0.75rem;
         font-weight: 600;
@@ -411,6 +467,82 @@
     .s-confirmed { background-color: var(--adm-accent-soft); color: var(--adm-accent-text); }
     .s-completed { background-color: var(--adm-success-bg); color: var(--adm-success-text); }
     .s-cancelled, .s-no_show { background-color: var(--adm-border); color: var(--adm-text-muted); }
+    .box {
+        border: 1px solid var(--adm-border);
+        border-radius: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.875rem;
+    }
+    .client-card {
+        gap: 0.5rem;
+    }
+    .client-name {
+        align-items: center;
+        align-self: flex-start;
+        color: var(--adm-text);
+        display: inline-flex;
+        font-size: 1.0625rem;
+        font-weight: 700;
+        gap: 0.25rem;
+        overflow-wrap: anywhere;
+    }
+    a.client-name {
+        text-decoration: none;
+    }
+    a.client-name span {
+        text-decoration: underline;
+        text-decoration-color: var(--adm-accent-line);
+        text-underline-offset: 3px;
+    }
+    a.client-name i {
+        color: var(--adm-text-muted);
+        font-size: 0.875rem;
+    }
+    a.client-name:hover i {
+        color: var(--adm-text);
+    }
+    .contact {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        list-style: none;
+    }
+    .contact li {
+        align-items: flex-start;
+        display: flex;
+        gap: 0.5rem;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+    .contact li > i {
+        color: var(--adm-text-muted);
+        flex: none;
+        margin-top: 0.25rem;
+    }
+    .contact li > span {
+        min-width: 0;
+    }
+    .label {
+        color: var(--adm-text-muted);
+        font: 400 0.875rem / 1.3 var(--font-default);
+        margin-bottom: 0.25rem;
+    }
+    .total-row {
+        align-items: baseline;
+        border-top: 1px solid var(--adm-border);
+        display: flex;
+        justify-content: space-between;
+        padding-top: 0.625rem;
+    }
+    .total-row span {
+        color: var(--adm-text-muted);
+    }
+    .total-row strong {
+        font-size: 1.0625rem;
+        font-variant-numeric: tabular-nums;
+    }
     dl {
         display: flex;
         flex-direction: column;
@@ -429,6 +561,7 @@
         min-width: 0;
         overflow-wrap: anywhere;
     }
+    .client-card a:not(.client-name),
     dd a {
         color: var(--adm-text);
         font-weight: 600;
@@ -439,17 +572,31 @@
     .items {
         list-style: none;
     }
-    .items li {
+    .items li + li {
+        margin-top: 0.125rem;
+    }
+    .email {
+        overflow-wrap: anywhere;
+    }
+    .via {
+        color: var(--adm-text-muted);
+        display: block;
+        font-size: 0.875rem;
+        margin-top: 0.125rem;
+    }
+    .email .google {
+        align-items: center;
         display: flex;
-        gap: 1rem;
-        justify-content: space-between;
+        gap: 0.25rem;
+        margin-top: 0.25rem;
+        width: fit-content;
     }
-    .notes {
+    .client-note {
         font-style: italic;
+        overflow-wrap: anywhere;
     }
-    .ref {
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0.04em;
+    .client-note .muted {
+        font-style: normal;
     }
     .tag {
         background-color: var(--adm-accent-soft);
@@ -458,6 +605,7 @@
         font-size: 0.75rem;
         font-weight: 600;
         padding: 0.0625rem 0.375rem;
+        white-space: nowrap;
     }
     .items .tag {
         margin-left: 0.375rem;
@@ -466,6 +614,15 @@
     .tag.retired {
         background-color: var(--adm-border);
         color: var(--adm-text-muted);
+    }
+    .action-row {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .action-row button {
+        padding: 0 0.25rem;
+        white-space: nowrap;
     }
     .actions {
         display: flex;
@@ -499,9 +656,6 @@
     .notes-head h3 {
         color: var(--adm-text);
         font: 600 0.9375rem / 1.3 var(--font-default);
-    }
-    .notes-head h3 .muted {
-        font-weight: 400;
     }
     .small {
         min-height: 2.75rem;
@@ -563,25 +717,20 @@
     .none {
         font-size: 0.875rem;
     }
-    .remove {
-        border-top: 1px solid var(--adm-border);
-        padding-top: 0.5rem;
-    }
-    .delete {
+    .foot {
         align-items: center;
-        border-radius: 0.25rem;
-        color: var(--adm-danger);
-        cursor: pointer;
-        display: inline-flex;
-        font-size: 0.875rem;
-        font-weight: 600;
-        gap: 0.375rem;
-        margin-left: -0.5rem;
-        min-height: 2.75rem;
-        padding: 0 0.5rem;
+        border-top: 1px solid var(--adm-border);
+        display: flex;
+        gap: 0.5rem;
+        padding-top: 0.75rem;
     }
-    .delete:hover {
-        background-color: var(--adm-danger-bg);
+    .foot .icon-btn {
+        margin-left: auto;
+    }
+    .cancel-btn {
+        align-items: center;
+        display: inline-flex;
+        gap: 0.5rem;
     }
     .confirm-hint {
         margin-top: 0.5rem;

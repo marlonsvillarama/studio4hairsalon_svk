@@ -41,7 +41,6 @@
         rail = !rail;
         try { localStorage.setItem(SIDEBAR_KEY, rail ? 'collapsed' : 'expanded'); } catch { /* this session only */ }
     }
-    let otherTheme = $derived(THEMES.find(t => t.id !== theme));
 
     async function chooseTheme(t) {
         if (t === theme) return;
@@ -96,6 +95,7 @@
 
     const nav = [
         { href: '/admin', label: 'Bookings', icon: 'calendar-dots' },
+        { href: '/admin/clients', label: 'Clients', icon: 'users' },
         { href: '/admin/time-off', label: 'Time off', icon: 'calendar-x' },
         { href: '/admin/categories', label: 'Categories', icon: 'squares-four' },
         { href: '/admin/services', label: 'Services', icon: 'scissors' },
@@ -112,6 +112,33 @@
         if (menu?.matches(':popover-open')) menu.hidePopover();
     };
     afterNavigate(closeMenu);
+
+    // ─── Account menu (theme, website, sign out) ─────────────────────────
+    // A popover in the top layer, so it isn't clipped by the scrolling sidebar
+    // or the collapsed rail. Light dismiss, Esc and focus return come with it.
+    let account = $state();
+    let accountTrigger = $state();
+    let accountOpen = $state(false);
+    let accountPos = $state('');
+    function placeAccount(e) {
+        if (e.newState !== 'open') { accountOpen = false; return; }
+        accountOpen = true;
+        const r = accountTrigger.getBoundingClientRect();
+        const wide = matchMedia('(min-width: 56rem)').matches;
+        accountPos = wide && rail
+            ? `left:${accountTrigger.closest('.sidebar').getBoundingClientRect().right + 8}px; bottom:${Math.max(8, innerHeight - r.bottom)}px; width:15rem`
+            : `left:${r.left}px; bottom:${innerHeight - r.top + 6}px; width:${Math.max(r.width, 224)}px`;
+    }
+    const closeAccount = () => { if (account?.matches(':popover-open')) account.hidePopover(); };
+
+    // Skip link: move focus to the page content (SvelteKit's router would
+    // otherwise only scroll).
+    function skipToMain(e) {
+        e.preventDefault();
+        const m = document.getElementById('main');
+        m?.focus();
+        m?.scrollIntoView();
+    }
 </script>
 
 <svelte:head>
@@ -120,6 +147,7 @@
 </svelte:head>
 
 <div class="admin" class:with-sidebar={view === 'ready'} class:rail data-theme={theme}>
+    <a href="#main" class="skip-link" onclick={skipToMain}>Skip to content</a>
     {#if view === 'ready'}
         <!-- Narrow screens: slim bar with a menu button. -->
         <header class="topbar">
@@ -148,36 +176,39 @@
                 {/each}
             </nav>
             <div class="sidebar-foot">
-                <button type="button" class="foot-link rail-theme" title="Switch to the {otherTheme.label} theme"
-                    onclick={() => chooseTheme(otherTheme.id)}>
-                    <i class="ph ph-palette" aria-hidden="true"></i>
-                    <span>Switch to the {otherTheme.label} theme</span>
-                </button>
-                <div class="theme">
-                    <span class="theme-label" id="theme-label">
-                        <i class="ph ph-palette" aria-hidden="true"></i> Theme
-                    </span>
-                    <div class="theme-options" role="radiogroup" aria-labelledby="theme-label" tabindex="-1" onkeydown={themeKeys}>
-                        {#each THEMES as t (t.id)}
-                            <button type="button" role="radio" data-theme-option={t.id}
-                                aria-checked={theme === t.id} tabindex={theme === t.id ? 0 : -1}
-                                onclick={() => chooseTheme(t.id)}>{t.label}</button>
-                        {/each}
-                    </div>
-                </div>
                 {#if themeNote}<p class="theme-note" role="alert">{themeNote}</p>{/if}
-                <a href="/" target="_blank" rel="noopener" class="foot-link" title={rail ? 'View website' : undefined}>
-                    <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
-                    <span>View website</span>
-                </a>
-                <div class="who" title={rail ? staff?.display_name ?? 'Staff' : undefined}>
+                <button type="button" class="foot-link account-btn" bind:this={accountTrigger}
+                    popovertarget="account-menu" aria-expanded={accountOpen} aria-controls="account-menu"
+                    title={rail ? `${staff?.display_name ?? 'Staff'}: account menu` : undefined}>
                     <i class="ph ph-user-circle" aria-hidden="true"></i>
                     <span>{staff?.display_name ?? 'Staff'}</span>
-                </div>
-                <button type="button" class="foot-link signout" title={rail ? 'Sign out' : undefined} onclick={signOut}>
-                    <i class="ph ph-sign-out" aria-hidden="true"></i>
-                    <span>Sign out</span>
+                    <i class="ph ph-caret-up-down caret" aria-hidden="true"></i>
                 </button>
+                <div class="account-menu" id="account-menu" popover bind:this={account} ontoggle={placeAccount} style={accountPos}
+                    aria-label="Account">
+                    <div class="theme">
+                        <span class="theme-label" id="theme-label">
+                            <i class="ph ph-palette" aria-hidden="true"></i> Theme
+                        </span>
+                        <div class="theme-options" role="radiogroup" aria-labelledby="theme-label" tabindex="-1" onkeydown={themeKeys}>
+                            {#each THEMES as t (t.id)}
+                                <button type="button" role="radio" data-theme-option={t.id}
+                                    aria-checked={theme === t.id} tabindex={theme === t.id ? 0 : -1}
+                                    onclick={() => chooseTheme(t.id)}>
+                                    {#if theme === t.id}<i class="ph ph-check" aria-hidden="true"></i>{/if}{t.label}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                    <a href="/" target="_blank" rel="noopener" class="menu-item" onclick={closeAccount}>
+                        <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
+                        <span>View website</span>
+                    </a>
+                    <button type="button" class="menu-item" onclick={() => { closeAccount(); signOut(); }}>
+                        <i class="ph ph-sign-out" aria-hidden="true"></i>
+                        <span>Sign out</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -193,7 +224,7 @@
         </header>
     {/if}
 
-    <main class="content">
+    <main class="content" id="main" tabindex="-1">
         {#if view === 'loading'}
             <p class="muted" role="status">Checking your sign-in…</p>
         {:else if view === 'signed-out'}
@@ -223,7 +254,15 @@
     /* ── Themes ───────────────────────────────────────────────────────────
        Every admin colour, font and shadow comes from these tokens.
        "studio4" reproduces the salon look; "clean" is a light, neutral UI
-       (white canvas, navy text, blue actions). */
+       (white canvas, navy text, blue actions).
+
+       Studio4 uses two yellows on purpose. --adm-primary-bg (bright yellow,
+       accent-400) is only for filled buttons and the current menu item, where
+       dark text sits on it. Bright yellow is about 1.6:1 against white, so
+       small controls drawn on white (switches, checkboxes, radios, link
+       underlines, selected outlines, focus rings) use the mustard tokens
+       (--adm-selected-border, --adm-accent-line, --adm-focus: accent-600/700),
+       which reach the 3:1 needed for non-text UI. */
     .admin,
     .admin[data-theme="studio4"] {
         --adm-canvas: var(--lighter);
@@ -479,8 +518,7 @@
         transition: background-color 150ms ease, color 150ms ease;
     }
     nav a > i,
-    .foot-link > i,
-    .who > i {
+    .foot-link > i {
         font-size: 1.375rem;
         flex: none;
     }
@@ -501,18 +539,71 @@
         margin-top: auto;
         padding-top: 0.75rem;
     }
-    .signout {
+    .account-btn {
         cursor: pointer;
     }
+    .account-btn > span {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .account-btn > .caret {
+        color: var(--adm-sidebar-subtle);
+        font-size: 1rem;
+    }
+    .account-btn[aria-expanded="true"] {
+        background-color: var(--adm-sidebar-hover);
+    }
+    .account-menu {
+        background-color: var(--adm-surface);
+        border: 1px solid var(--adm-border);
+        border-radius: 0.5rem;
+        box-shadow: var(--adm-shadow-overlay);
+        color: var(--adm-text);
+        inset: auto;
+        margin: 0;
+        padding: 0.375rem;
+        position: fixed;
+    }
+    .account-menu:popover-open {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+    .menu-item {
+        align-items: center;
+        border-radius: 0.375rem;
+        color: var(--adm-text);
+        cursor: pointer;
+        display: flex;
+        font-weight: 500;
+        gap: 0.75rem;
+        min-height: 2.75rem;
+        padding: 0 0.75rem;
+        text-align: left;
+        width: 100%;
+        transition: background-color 150ms ease;
+    }
+    .menu-item > i {
+        color: var(--adm-text-muted);
+        font-size: 1.25rem;
+    }
+    .menu-item:hover {
+        background-color: var(--adm-sunken);
+    }
     .theme {
+        border-bottom: 1px solid var(--adm-border);
         display: flex;
         flex-direction: column;
         gap: 0.375rem;
-        padding: 0 0.75rem 0.5rem;
+        margin-bottom: 0.25rem;
+        padding: 0.5rem 0.5rem 0.75rem;
     }
     .theme-label {
         align-items: center;
-        color: var(--adm-sidebar-subtle);
+        color: var(--adm-text-muted);
         display: flex;
         font-size: 0.8125rem;
         font-weight: 600;
@@ -522,7 +613,8 @@
         font-size: 1.125rem;
     }
     .theme-options {
-        background-color: var(--adm-sidebar-hover);
+        background-color: var(--adm-sunken);
+        border: 1px solid var(--adm-border);
         border-radius: 0.375rem;
         display: grid;
         gap: 0.125rem;
@@ -530,36 +622,60 @@
         padding: 0.1875rem;
     }
     .theme-options > button {
+        align-items: center;
         border-radius: 0.25rem;
-        color: var(--adm-sidebar-text);
+        color: var(--adm-text);
         cursor: pointer;
+        display: inline-flex;
         font-size: 0.875rem;
         font-weight: 600;
-        min-height: 2.25rem;
+        gap: 0.25rem;
+        justify-content: center;
+        min-height: 2.75rem;
         transition: background-color 150ms ease, color 150ms ease;
     }
     .theme-options > button[aria-checked="true"] {
-        background-color: var(--adm-nav-active-bg);
-        color: var(--adm-nav-active-text);
+        background-color: var(--adm-surface);
+        box-shadow: var(--adm-shadow-raised);
     }
     .theme-note {
         color: var(--adm-sidebar-subtle);
         font-size: 0.75rem;
         padding: 0 0.75rem;
     }
-    .who {
-        align-items: center;
-        color: var(--adm-sidebar-subtle);
-        display: flex;
-        font-size: 0.875rem;
-        gap: 0.75rem;
-        min-height: 2.5rem;
-        padding: 0 0.75rem;
+
+    /* Skip link: hidden until focused (first Tab stop). */
+    .skip-link {
+        background-color: var(--adm-surface);
+        border-radius: 0.375rem;
+        box-shadow: var(--adm-shadow-overlay);
+        color: var(--adm-text);
+        font-weight: 600;
+        left: 0.75rem;
+        padding: 0.75rem 1rem;
+        position: fixed;
+        top: 0.75rem;
+        z-index: 100;
+    }
+    .skip-link:not(:focus-visible) {
+        clip-path: inset(50%);
+        opacity: 0;
+        pointer-events: none;
+    }
+    .content:focus {
+        outline: none;
     }
 
-    .rail-theme,
     .rail-toggle {
         display: none;
+    }
+
+    /* Registered so the collapse can animate it: the grid column and the
+       toggle button both read it, so they slide together. */
+    @property --sidebar-w {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 240px; /* must be a fixed unit (no rem) or the rule is ignored */
     }
 
     /* Wide screens: fixed sidebar beside full-width content. */
@@ -568,6 +684,7 @@
             --sidebar-w: 15rem;
             display: grid;
             grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+            transition: --sidebar-w 220ms cubic-bezier(0.16, 1, 0.3, 1);
         }
         .admin.with-sidebar.rail {
             --sidebar-w: 4.25rem;
@@ -581,6 +698,7 @@
             height: 100vh;
             inset: auto;
             max-width: none;
+            overflow-x: hidden;
             overflow-y: auto;
             position: sticky;
             top: 0;
@@ -617,46 +735,39 @@
             position: absolute;
         }
 
-        /* Collapsed: icons only. Labels stay available to screen readers. */
+        /* Labels are clipped by the sliding edge and fade out. Icons keep the
+           same padding, so they don't move. Screen readers still read the labels. */
+        nav a,
+        .foot-link {
+            overflow: hidden;
+        }
+        .brand,
+        nav a > span,
+        .foot-link > span,
+        .account-btn > .caret {
+            transition: opacity 120ms ease;
+            white-space: nowrap;
+        }
         .rail .brand,
         .rail nav a > span,
         .rail .foot-link > span,
-        .rail .who > span {
-            clip-path: inset(50%);
-            height: 1px;
-            overflow: hidden;
-            position: absolute;
-            white-space: nowrap;
-            width: 1px;
+        .rail .account-btn > .caret {
+            opacity: 0;
         }
         .rail .brand:focus-visible {
-            clip-path: none;
-            height: auto;
-            position: static;
-            width: auto;
-        }
-        .rail .sidebar {
-            overflow-x: hidden;
+            opacity: 1;
         }
         .rail .sidebar-head {
             min-height: 2.75rem;
         }
-        .rail nav a,
-        .rail .foot-link,
-        .rail .who {
-            justify-content: center;
-            padding: 0;
-        }
-        .rail .theme {
-            display: none;
-        }
-        .rail .rail-theme {
-            cursor: pointer;
-            display: flex;
-        }
     }
     @media (prefers-reduced-motion: reduce) {
-        .sidebar {
+        .sidebar,
+        .admin.with-sidebar,
+        .brand,
+        nav a > span,
+        .foot-link > span,
+        .account-btn > .caret {
             transition: none;
         }
     }
@@ -794,6 +905,20 @@
     .admin :global(.icon-btn.danger-icon:hover:not(:disabled)) {
         background-color: var(--adm-danger-bg);
         color: var(--adm-danger);
+    }
+    /* Neighbouring icon buttons keep 8px between their targets. */
+    .admin :global(.icon-btn + .icon-btn) {
+        margin-left: 0.5rem;
+    }
+    /* Links inside tables and detail lists: on touch screens the tap area
+       grows to 44px tall. Vertical padding on an inline link widens what
+       can be tapped without moving the text around it. */
+    @media (pointer: coarse) {
+        .admin :global(.admin-table td a:not(.icon-btn):not(.primary):not(.secondary)),
+        .admin :global(dd a),
+        .admin :global(.tap) {
+            padding-block: 0.75rem;
+        }
     }
     .admin :global(.icon-btn:disabled) {
         cursor: default;
